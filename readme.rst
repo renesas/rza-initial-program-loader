@@ -10,7 +10,7 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 Current Release
 ---------------
 
-[IPL v1.0.0]
+`IPL v1.0.0`_
 
 Supported MPUs
 --------------
@@ -34,3 +34,6 @@ RZ Product Information: www.renesas.com/rza3ul
 e² studio : www.renesas.com/e2studio
 
 Support: www.renesas.com/support
+
+.. _IPL v1.0.0: https://github.com/renesas/rza-initial-program-loader/releases/tag/v1.0.0
+
