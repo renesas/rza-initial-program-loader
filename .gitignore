@@ -1,52 +1,46 @@
-# Prerequisites
-*.d
+# Ignore miscellaneous files
+cscope.*
+*.swp
+*.patch
+*~
+.project
+.cproject
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# Ignore build directory
+build/
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# Ignore build products from tools
+tools/**/*.o
+tools/renesas/rcar_layout_create/*.bin
+tools/renesas/rcar_layout_create/*.srec
+tools/renesas/rcar_layout_create/*.map
+tools/renesas/rcar_layout_create/*.elf
+tools/renesas/rzg_layout_create/*.bin
+tools/renesas/rzg_layout_create/*.srec
+tools/renesas/rzg_layout_create/*.map
+tools/renesas/rzg_layout_create/*.elf
+tools/fiptool/fiptool
+tools/fiptool/fiptool.exe
+tools/cert_create/src/*.o
+tools/cert_create/src/**/*.o
+tools/cert_create/cert_create
+tools/cert_create/cert_create.exe
+tools/marvell/doimage/doimage
+tools/amlogic/doimage
+tools/stm32image/*.o
+tools/stm32image/stm32image
+tools/stm32image/stm32image.exe
+tools/sptool/sptool
+tools/sptool/sptool.exe
 
-# Precompiled Headers
-*.gch
-*.pch
+# GNU GLOBAL files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Ctags
+tags
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# Node.js
+node_modules/
