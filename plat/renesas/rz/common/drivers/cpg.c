@@ -747,7 +747,7 @@ static void cpg_selector_on_off(uint32_t sel, uint8_t flag)
 		if (flag == CPG_ON) {
 			mmio_write_32(ptr[cnt].reg, (mmio_read_32(ptr[cnt].reg) | ptr[cnt].val));
 		} else {
-			mmio_write_32(ptr[cnt].reg, (mmio_read_32(ptr[cnt].reg) | (ptr[cnt].val & 0xFFFF0000)));
+			mmio_write_32(ptr[cnt].reg, (ptr[cnt].val & 0xFFFF0000));
 		}
 	}
 
@@ -907,9 +907,20 @@ void cpg_wdtrst_sel_setup(void)
 	uint32_t reg;
 	reg = mmio_read_32(CPG_WDTRST_SEL);
 	reg |=
+#if RZA3UL
+		/* setting for RZ/A3UL */
+		WDTRST_SEL_WDTRSTSEL0 | WDTRST_SEL_WDTRSTSEL0_WEN ;
+#elif RZG2UL
+		/* setting for RZ/G2UL */
+		WDTRST_SEL_WDTRSTSEL0 | WDTRST_SEL_WDTRSTSEL0_WEN |
+		WDTRST_SEL_WDTRSTSEL2 | WDTRST_SEL_WDTRSTSEL2_WEN ;
+#else
+		/* setting for RZ/G2L, RZ/V2L */
 		WDTRST_SEL_WDTRSTSEL0 | WDTRST_SEL_WDTRSTSEL0_WEN |
 		WDTRST_SEL_WDTRSTSEL1 | WDTRST_SEL_WDTRSTSEL1_WEN |
 		WDTRST_SEL_WDTRSTSEL2 | WDTRST_SEL_WDTRSTSEL2_WEN ;
+#endif
+
 	mmio_write_32(CPG_WDTRST_SEL, reg);
 }
 
@@ -966,51 +977,70 @@ static void wait_until_32(uintptr_t addr, uint32_t mask, uint32_t test)
 static void cpg_stop_xspi_clock(xspi_clock spi)
 {
 	int onoff_pos;
+	uintptr_t clkon_ctrl;
+	uintptr_t clkmon_ctrl;
 	switch(spi) {
 	case XSPI_CLOCK_SPIM:
 		onoff_pos = 9;
+		clkon_ctrl = CPG_CLKON_SPI_MULTI;
+		clkmon_ctrl = CPG_CLKMON_SPI_MULTI;
 		break;
 	case XSPI_CLOCK_OCTA:
 		onoff_pos = 11;
+		clkon_ctrl = CPG_CLKON_OCTA;
+		clkmon_ctrl = CPG_CLKMON_OCTA;
 		break;
 	default:
 		ERROR("Not expected value %d passed to %s.", (int)spi, __func__);
 		return;
 	}
 
+	mmio_write_32(clkon_ctrl, 0x00030000);
 	mmio_write_32(CPG_CLKON_AXI_MCPU_BUS, 0x10000<<onoff_pos);
 	wait_until_32(CPG_CLKMON_AXI_MCPU_BUS, 1<<onoff_pos, 0);
+	wait_until_32(clkmon_ctrl, 0x0003, 0);
 }
 
 static void cpg_start_xspi_clock(xspi_clock spi)
 {
 	int onoff_pos;
+	uintptr_t clkon_ctrl;
+	uintptr_t clkmon_ctrl;
 	switch(spi) {
 	case XSPI_CLOCK_SPIM:
 		onoff_pos = 9;
+		clkon_ctrl = CPG_CLKON_SPI_MULTI;
+		clkmon_ctrl = CPG_CLKMON_SPI_MULTI;
 		break;
 	case XSPI_CLOCK_OCTA:
 		onoff_pos = 11;
+		clkon_ctrl = CPG_CLKON_OCTA;
+		clkmon_ctrl = CPG_CLKMON_OCTA;
 		break;
 	default:
 		ERROR("Not expected value %d passed to %s.", (int)spi, __func__);
 		return;
 	}
 
+	mmio_write_32(clkon_ctrl, 0x0003ffff);
 	mmio_write_32(CPG_CLKON_AXI_MCPU_BUS, 0x10000<<onoff_pos | 0xffff);
 	wait_until_32(CPG_CLKMON_AXI_MCPU_BUS, 1<<onoff_pos, 1<<onoff_pos);
+	wait_until_32(clkmon_ctrl, 0x0003, 0x0003);
 }
 
 int cpg_set_xspi_clock(xspi_clock spi, int frequency_hz)
 {
 	int seldiv_pos;
+	int status_pos;
 
 	switch(spi) {
 	case XSPI_CLOCK_SPIM:
 		seldiv_pos = 8;
+		status_pos = 10;
 		break;
 	case XSPI_CLOCK_OCTA:
 		seldiv_pos = 12;
+		status_pos = 12;
 		break;
 	default:
 		ERROR("Not expected value %d passed to %s.", (int)spi, __func__);
@@ -1034,10 +1064,11 @@ int cpg_set_xspi_clock(xspi_clock spi, int frequency_hz)
 
 	if (prev_div != cpg_xspi_table[index].divider) {
 		/* Changing dynamic divider */
+		wait_until_32(CPG_CLKSTATUS, 1u<<status_pos, 0);
 		uint32_t div = cpg_xspi_table[index].divider << seldiv_pos;
 		div |= 0x10000 << seldiv_pos;
 		mmio_write_32(CPG_PL3A_DDIV, div);
-		mmio_read_32(CPG_PL3A_DDIV);
+		wait_until_32(CPG_CLKSTATUS, 1u<<status_pos, 0);
 	}
 
 	return 0;

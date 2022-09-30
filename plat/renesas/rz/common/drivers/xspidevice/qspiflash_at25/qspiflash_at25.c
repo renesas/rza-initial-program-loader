@@ -7,11 +7,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <drivers/delay_timer.h>
 
 #include "qspiflash_at25_api.h"
 
 /* Defaults */
 #define DEFAULT_SPI_FREQUENCY 66666667
+#define SPI_POST_RESET_WAIT 50
 
 /* Static function pre-definition */
 static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg);
@@ -50,6 +52,7 @@ static const xspi_op_t op_write_enable = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x06,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 0,
@@ -59,6 +62,8 @@ static const xspi_op_t op_write_enable = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -69,6 +74,7 @@ static const xspi_op_t op_read_status1 = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x05,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 0,
@@ -78,6 +84,8 @@ static const xspi_op_t op_read_status1 = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 1,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -88,6 +96,7 @@ static const xspi_op_t op_read_status2 = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x35,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 0,
@@ -97,6 +106,8 @@ static const xspi_op_t op_read_status2 = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 1,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -107,6 +118,7 @@ static const xspi_op_t op_write_status2 = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x31,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 0,
@@ -116,6 +128,8 @@ static const xspi_op_t op_write_status2 = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 1,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -126,6 +140,7 @@ static const xspi_op_t rop = {
 	.form = SPI_FORM_1_4_4,
 	.op = 0xeb,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 3,
@@ -135,6 +150,8 @@ static const xspi_op_t rop = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -145,6 +162,7 @@ static const xspi_op_t op_page_program = {
 	.form = SPI_FORM_1_4_4,
 	.op = 0x33,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 3,
@@ -154,6 +172,8 @@ static const xspi_op_t op_page_program = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -164,6 +184,7 @@ static const xspi_op_t op_erase_4k = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x20,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 3,
@@ -173,6 +194,8 @@ static const xspi_op_t op_erase_4k = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -183,6 +206,7 @@ static const xspi_op_t op_erase_32k = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0x52,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 3,
@@ -192,6 +216,8 @@ static const xspi_op_t op_erase_32k = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -202,6 +228,7 @@ static const xspi_op_t op_erase_64k = {
 	.form = SPI_FORM_1_1_1,
 	.op = 0xD8,
 	.op_size = 1,
+	.op_is_ddr = false,
 	.address = 0,
 	.address_is_ddr = false,
 	.address_size = 3,
@@ -211,6 +238,8 @@ static const xspi_op_t op_erase_64k = {
 	.transfer_buffer = NULL,
 	.transfer_is_ddr = false,
 	.transfer_size = 0,
+	.force_idle_level_mask = 0x08,	// Keep IO3/HOLD pin to High
+	.force_idle_level_value = 0x08,	// Keep IO3/HOLD pin to High
 	.slch_value = 0,
 	.clsh_value = 0,
 	.shsl_value = 6
@@ -291,6 +320,7 @@ static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg)
 	result = xspi->api->open(xspi->ctrl, xspi->cfg);
 	if (result == 0) {
 		result = xspi->api->set_frequency(xspi->ctrl, spi_frequency);
+		udelay(SPI_POST_RESET_WAIT);
 	}
 	if (result == 0) {
 		result = flash_set_qe(myctrl);

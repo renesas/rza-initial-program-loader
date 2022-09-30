@@ -37,7 +37,7 @@ typedef enum xspidevice_write_status
 	WRITE_STATUS_IN_PROGRESS,
 	WRITE_STATUS_PROTECTED,
 	WRITE_STATUS_FAIL,
-	WRITE_STATUS_ABORTED
+	WRITE_STATUS_SUSPENDED
 } xspidevice_write_status_t;
 
 /** Shared Interface definition for xSPI */

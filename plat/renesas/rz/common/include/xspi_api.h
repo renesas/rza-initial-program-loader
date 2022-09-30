@@ -11,6 +11,30 @@
 #include <stdbool.h>
 #include <string.h>
 
+/** xSPI feature flags */
+#define XSPI_FEATURE_FORM112	(1u << 0)	/* Form 1-1-2 supported */
+#define XSPI_FEATURE_FORM122	(1u << 1)	/* Form 1-2-2 supported */
+#define XSPI_FEATURE_FORM222	(1u << 2)	/* Form 2-2-2 supported */
+#define XSPI_FEATURE_DUAL	(XSPI_FEATURE_FORM112|XSPI_FEATURE_FORM122|XSPI_FEATURE_FORM222)
+#define XSPI_FEATURE_FORM114	(1u << 3)	/* Form 1-1-4 supported */
+#define XSPI_FEATURE_FORM144	(1u << 4)	/* Form 1-4-4 supported */
+#define XSPI_FEATURE_FORM444	(1u << 5)	/* Form 4-4-4 supported */
+#define XSPI_FEATURE_QUAD	(XSPI_FEATURE_FORM114|XSPI_FEATURE_FORM144|XSPI_FEATURE_FORM444)
+#define XSPI_FEATURE_FORM118	(1u << 6)	/* Form 1-1-8 supported */
+#define XSPI_FEATURE_FORM188	(1u << 7)	/* Form 1-8-8 supported */
+#define XSPI_FEATURE_FORM888	(1u << 8)	/* Form 8-8-8 supported */
+#define XSPI_FEATURE_OCTAL	(XSPI_FEATURE_FORM118|XSPI_FEATURE_FORM188|XSPI_FEATURE_FORM888)
+#define XSPI_FEATURE_XIP_READ	(1u << 12)	/* XIP Read operation support */
+#define XSPI_FEATURE_XIP_WRITE	(1u << 13)	/* XIP Write operation support */
+#define XSPI_FEATURE_DTROP	(1u << 14)	/* DTR support for OP */
+#define XSPI_FEATURE_DTR	(1u << 15)	/* DTR support for Address/Data */
+#define XSPI_FEATURE_OCTARAM	(1u << 16)	/* OctaRAM addressing (RAS/CAS) supported */
+
+/** xSPI transfer additional flags */
+#define XSPI_FLAGS_SEQUENTIAL_DTR	(1u << 0)	/* Enable inverted order for DTR transfer */
+#define XSPI_FLAGS_FORCE_STROBE		(1u << 1)	/* Force to use of data strobe signal for timing reference */
+#define XSPI_FLAGS_DATA_ACCESS		(1u << 2)	/* Force to use data access method for exec_op */
+
 /** xSPI Transfer form */
 typedef enum e_xspi_transfer_form
 {
@@ -21,9 +45,9 @@ typedef enum e_xspi_transfer_form
 	SPI_FORM_1_1_4,		/* Command executes at 1-1-4 form */
 	SPI_FORM_1_4_4,		/* Command executes at 1-4-4 form */
 	SPI_FORM_4_4_4,		/* Command executes at 4-4-4 form */
-	SPI_FORM_SOPI,		/* Command executes at SOPI form */
-	SPI_FORM_DOPI,		/* Command executes at DOPI form */
-	SPI_FORM_OCTARAM,	/* Command executes at DOPI(OctaRAM) form */
+	SPI_FORM_1_1_8,		/* Command executes at 1-1-8 form */
+	SPI_FORM_1_8_8,		/* Command executes at 1-8-8 form */
+	SPI_FORM_8_8_8,		/* Command executes at 8-8-8 form */
 } xspi_transfer_form_t;
 
 /** xSPI interface configuration */
@@ -38,25 +62,25 @@ typedef struct st_xspi_cfg
 typedef void xspi_ctrl_t;
 
 /** xSPI operation table
- * *** CUT HERE BEFORE RELEASE, NOTICE FOR INTERNAL DEVELOPER ***
- * This table contains logical parameter, not a register value.
- * Do not modify this table as register value!
- * *** CUT HERE BEFORE RELEASE, NOTICE FOR INTERNAL DEVELOPER ***
  */
 typedef struct st_xspi_op
 {
-	xspi_transfer_form_t form;	///< Transfer form */
-	uint16_t op;			///< Operation code (for 2 byte op, highside used as 1st byte) */
-	uint8_t  op_size;		///< Operation code size (0 to 2) */
-	uint32_t address;		///< Address (ignored for configuring in-place access) */
-	uint8_t  address_size;		///< Address size (0 to 4) */
-	bool     address_is_ddr;	///< Address phase is DDR */
-	uint8_t  additional_size;	///< Additional data size */
-	uint32_t additional_value;	///< Additional data value */
-	uint8_t  dummy_cycles;		///< Dummy cycle count (as clocks) */
-	size_t   transfer_size;		///< Transfer size by bytes (ignored for configuring in-place access) */
-	void *   transfer_buffer;	///< Transfer buffer pointer (ignored for configuring in-place access) */
-	bool     transfer_is_ddr;	///< Transfer phase is DDR */
+	xspi_transfer_form_t form;	///< Transfer form
+	uint16_t op;			///< Operation code (for 2 byte op, highside used as 1st byte)
+	uint8_t  op_size;		///< Operation code size (0 to 2)
+	bool     op_is_ddr;		///< Operation code phase is DDR
+	uint32_t address;		///< Address (ignored for configuring in-place access)
+	uint8_t  address_size;		///< Address size (0 to 4)
+	bool     address_is_ddr;	///< Address phase is DDR
+	uint8_t  additional_size;	///< Additional data size
+	uint32_t additional_value;	///< Additional data value
+	uint8_t  dummy_cycles;		///< Dummy cycle count (as clocks)
+	size_t   transfer_size;		///< Transfer size by bytes (ignored for configuring in-place access)
+	void *   transfer_buffer;	///< Transfer buffer pointer (ignored for configuring in-place access)
+	bool     transfer_is_ddr;	///< Transfer phase is DDR
+	uint8_t  transfer_flag;		///< Additional transfer flags
+	uint8_t  force_idle_level_mask;	///< Whether or not to force each IO level during the idle state
+	uint8_t  force_idle_level_value; ///< IO level during the idle state
 	uint8_t  slch_value;
 	uint8_t  clsh_value;
 	uint8_t  shsl_value;
@@ -166,6 +190,12 @@ typedef struct st_xspi_api
 	 * @param[in] ctrl Pointer to the control block.
 	 */
 	size_t (* get_mmap_size)(xspi_ctrl_t * const ctrl);
+
+	/** Get features flag
+	 *
+	 * @param[in] ctrl Pointer to the control block.
+	 */
+	uint32_t (* get_features)(xspi_ctrl_t * const ctrl);
 } xspi_api_t;
 
 /** This structure encompasses everything that is needed to use an instance of this interface. */

@@ -73,10 +73,13 @@ int  rz_check_fsp_header(fsp_app_header_t *header)
 		if (0 == ret) {
 			if ((header->dest_addr < RZG2L_SRAM_BASE) || 
 				((header->dest_addr + header->payload_size)> (RZG2L_SRAM_BASE + RZG2L_SRAM_SIZE))) {
-				if ((header->dest_addr < RZG2L_DDR1_BASE) || 
-					((header->dest_addr + header->payload_size) > (RZG2L_DDR1_BASE + RZG2L_DDR1_SIZE + RZG2L_DDR2_SIZE))) {
-					ret = -1;
-					ERROR("The application image to copy does not fit in memory\n");
+				if ((header->dest_addr < RZG2L_SPIROM_BASE) || 
+					((header->dest_addr + header->payload_size)> (RZG2L_SPIROM_BASE + RZG2L_SPIROM_SIZE))) {
+					if ((header->dest_addr < RZG2L_DDR1_BASE) || 
+						((header->dest_addr + header->payload_size) > (RZG2L_DDR1_BASE + RZG2L_DDR1_SIZE + RZG2L_DDR2_SIZE))) {
+						ret = -1;
+						ERROR("The application image to copy does not fit in memory\n");
+					}
 				}
 			}
 		}

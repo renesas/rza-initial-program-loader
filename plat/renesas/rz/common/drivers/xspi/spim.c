@@ -45,6 +45,7 @@ static int spim_clean_mmap(xspi_ctrl_t * const ctrl);
 static int spim_inv_mmap(xspi_ctrl_t * const ctrl);
 static uintptr_t spim_get_mmap_base(xspi_ctrl_t * const ctrl);
 static size_t spim_get_mmap_size(xspi_ctrl_t * const ctrl);
+static uint32_t spim_get_features(xspi_ctrl_t * const ctrl);
 
 /* API function table definition */
 const xspi_api_t spim_api = {
@@ -63,6 +64,7 @@ const xspi_api_t spim_api = {
 	.inv_mmap = spim_inv_mmap,
 	.get_mmap_base = spim_get_mmap_base,
 	.get_mmap_size = spim_get_mmap_size,
+	.get_features = spim_get_features,
 };
 
 /* DTR test pattern */
@@ -355,22 +357,82 @@ static int spim_post_init(xspi_ctrl_t * const ctrl)
 	return result;
 }
 
+static const uint32_t spim_cmncr_set(uint8_t mask, uint8_t value, int pos)
+{
+	int moiionpos = -1;
+	int ionfvpos = -1;
+	uint32_t cmncr_set = 0;
+	uint32_t moiio = 0;
+	uint32_t ionfv = 0;
+
+	switch(pos) {
+		case 1:
+			moiionpos = SPIM_CMNCR_MOIIO1_POS;
+			break;
+		case 2:
+			moiionpos = SPIM_CMNCR_MOIIO2_POS;
+			ionfvpos = SPIM_CMNCR_IO2FV_POS;
+			break;
+		case 3:
+			moiionpos = SPIM_CMNCR_MOIIO3_POS;
+			ionfvpos = SPIM_CMNCR_IO3FV_POS;
+			break;
+	}
+
+	if (mask & 1 << pos) {
+		moiio = value & 1 << pos ? SPIM_CMNCR_IO_HIGH : SPIM_CMNCR_IO_LOW;
+		ionfv = SPIM_CMNCR_IO_KEEP;
+	}
+	else {
+		moiio = SPIM_CMNCR_IO_HIZ;
+		ionfv = SPIM_CMNCR_IO_HIZ;
+	}
+
+
+	if (mask & 1 << pos) {
+		if (moiionpos >= 0) cmncr_set |= moiio << moiionpos;
+		if (ionfvpos >= 0) cmncr_set |= ionfv << ionfvpos;
+	}
+
+	return cmncr_set;
+}
+
+static void spim_set_idlelevel(spim_ctrl_t * const myctrl, const xspi_op_t * const op)
+{
+	static const uint32_t cmncr_mask =
+		SPIM_CMNCR_IO0FV |
+		SPIM_CMNCR_IO2FV |
+		SPIM_CMNCR_IO3FV |
+		SPIM_CMNCR_MOIIO0 |
+		SPIM_CMNCR_MOIIO1 |
+		SPIM_CMNCR_MOIIO2 |
+		SPIM_CMNCR_MOIIO3;
+
+	uint32_t cmncr_set = 0;
+
+	cmncr_set |= spim_cmncr_set(op->force_idle_level_mask, op->force_idle_level_value, 1);
+	cmncr_set |= spim_cmncr_set(op->force_idle_level_mask, op->force_idle_level_value, 2);
+	cmncr_set |= spim_cmncr_set(op->force_idle_level_mask, op->force_idle_level_value, 3);
+
+	mmio_clrsetbits_32(myctrl->reg_base + SPIM_CMNCR, cmncr_mask, cmncr_set);
+}
+
 static int spim_reduce_frequency(spim_ctrl_t * const ctrl, bool dtr)
 {
 	int old_freq = spi_clock;
 	assert(ctrl);
-	if (dtr && spi_clock > RZ_XSPI_DTR_FREQ_LIMIT) {
-		spi_clock = RZ_XSPI_DTR_FREQ_LIMIT;
+	if (dtr && spi_clock > RZ_SPIM_DTR_FREQ_LIMIT) {
+		spi_clock = RZ_SPIM_DTR_FREQ_LIMIT;
 	}
-	else if (!dtr && spi_clock > RZ_XSPI_STR_FREQ_LIMIT) {
-		spi_clock = RZ_XSPI_STR_FREQ_LIMIT;
+	else if (!dtr && spi_clock > RZ_SPIM_STR_FREQ_LIMIT) {
+		spi_clock = RZ_SPIM_STR_FREQ_LIMIT;
 	}
 	else {
 		/* We do not need to reduce the current SPI frequency */
 		return 0;
 	}
 
-	int result = cpg_set_xspi_clock(XSPI_CLOCK_SPIM, spi_clock * 4);
+	int result = cpg_set_xspi_clock(XSPI_CLOCK_SPIM, spi_clock * 4 + 1);
 	if (result != 0) {
 		return result;
 	}
@@ -379,14 +441,14 @@ static int spim_reduce_frequency(spim_ctrl_t * const ctrl, bool dtr)
 	if (actual_freq == -1) return -1;
 	spi_clock = actual_freq / 4;
 
-	WARN("SPIM: Reduces the SPI frequency from %d to %d.\n", old_freq, spi_clock);
+	INFO("SPIM: Reduces the SPI frequency from %d to %d.\n", old_freq, spi_clock);
 
 	return 0;
 }
 
 static void spim_start_xip_internal(spim_ctrl_t * const ctrl)
 {
-	bool is_dtr = !!(mmio_read_32(SPIM_DRDRENR)&SPIM_DRDRENR_DRDRE);
+	bool is_dtr = !!(mmio_read_32(ctrl->reg_base + SPIM_DRDRENR)&SPIM_DRDRENR_DRDRE);
 	spim_reduce_frequency(ctrl, is_dtr);
 	mmio_clrbits_32(ctrl->reg_base + SPIM_CMNCR, SPIM_CMNCR_MD);
 	mmio_read_32(ctrl->reg_base + SPIM_CMNCR);
@@ -741,14 +803,22 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 	is_xip = spim_stop_xip_temporarily(myctrl);
 
 	/* Do calibration and reduce freq. if transfer is DTR read */
-	if (op->transfer_is_ddr && !is_write && op->transfer_size) {
+	if (op->transfer_is_ddr) {
 		spim_reduce_frequency(ctrl, true);
-		int res = calibration_check(myctrl);
-		if (res < 0) return res;
+		if (!is_write && op->transfer_size) {
+			int res = calibration_check(myctrl);
+			if (res < 0) return res;
+		}
 	}
 	else {
-		spim_reduce_frequency(ctrl, true);
+		spim_reduce_frequency(ctrl, false);
 	}
+
+	/* Wait for transaction end */
+	test_tend(myctrl);
+
+	/* Change I/O level while idle state */
+	spim_set_idlelevel(myctrl, op);
 
 	/* Create values to write the registers */
 	uint32_t smcmr_set = 0;
@@ -1149,6 +1219,9 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 	uint32_t phycnt_msk = SPIM_PHYCNT_PHYMEM;
 	uint32_t phycnt_set = 0;
 
+	/* Change I/O level while idle state */
+	spim_set_idlelevel(myctrl, rop);
+
 	drenr &= ~drenr_clearmask;
 	drcmr &= ~drcmr_clearmask;
 	drdrenr &= ~drdrenr_clearmask;
@@ -1370,13 +1443,13 @@ static int spim_set_frequency(xspi_ctrl_t * const ctrl, int frequency_hz)
 {
 	assert(ctrl);
 
-	int result = cpg_set_xspi_clock(XSPI_CLOCK_SPIM, frequency_hz * 4);
+	int result = cpg_set_xspi_clock(XSPI_CLOCK_SPIM, frequency_hz * 4 + 1);
 	if (result != 0) return result;
 	int actual_freq = cpg_get_xspi_clock(XSPI_CLOCK_SPIM);
 	if (actual_freq == -1) return -1;
 	actual_freq = actual_freq / 4;
 	if (spi_clock != actual_freq) {
-		WARN("SPIM: Reduces the SPI frequency from %d to %d.\n", spi_clock, actual_freq);
+		INFO("SPIM: Reduces the SPI frequency from %d to %d.\n", spi_clock, actual_freq);
 	}
 	spi_clock = actual_freq;
 
@@ -1409,4 +1482,17 @@ static size_t spim_get_mmap_size(xspi_ctrl_t * const ctrl)
 	assert(ctrl);
 	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
 	return myctrl->mmap_size;
+}
+
+static uint32_t spim_get_features(xspi_ctrl_t * const ctrl)
+{
+	(void)ctrl;
+	uint32_t features = 0;
+	features |= XSPI_FEATURE_FORM114;
+	features |= XSPI_FEATURE_FORM144;
+	features |= XSPI_FEATURE_FORM444;
+	features |= XSPI_FEATURE_DTR;
+	features |= XSPI_FEATURE_XIP_READ;
+
+	return features;
 }
