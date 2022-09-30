@@ -10,10 +10,13 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 
 [IPL v1.1.0]
 ### Supported MPUs
+
 RZ/A3UL
 
 ### Supported RZ/A MPU Kits
+
 - RZ/A3UL-Evaluation-Board-Kit (QSPI version) (RTK9763U02S01000BE)
+
 - RZ/A3UL-Evaluation-Board-Kit (Octal-SPI version) (RTK9763U02S01001BE)
 
 ### Development Environment
