@@ -36,9 +36,24 @@ binmode $out;
 
 # Write header
 $out->print(pack('L', $size));
-for(my $i = 0; $i < 126; $i++) {
+for(my $i = 1; $i < 112; $i++) {
 	$out->print(pack('L', 0xffffffff));
 }
+$out->print(pack('L', 0xffff0000));
+$out->print(pack('L', 0x000800ff));
+$out->print(pack('L', 0x00fff700));
+$out->print(pack('L', 0xf700f708));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
+$out->print(pack('L', 0xffffffff));
 $out->print(pack('L', 0xaa55ffff));
 
 # Append original data to temporary file

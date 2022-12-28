@@ -17,7 +17,6 @@ typedef struct st_spim_ctrl
 	bool opened;
 	uintptr_t reg_base;
 	uintptr_t mmap_base;
-	uint32_t calibration_base;
 	size_t mmap_size;
 	uint8_t channel;
 } spim_ctrl_t;
@@ -26,7 +25,6 @@ typedef struct st_spim_ctrl
 typedef struct st_spim_ext
 {
 	bool voltage_is_3300mv;
-	uint32_t calibration_base;
 } spim_ext_t;
 
 extern const xspi_api_t spim_api;

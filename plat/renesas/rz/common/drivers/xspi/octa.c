@@ -25,7 +25,7 @@
 #define DEFAULT_SPI_FREQUENCY 66666667
 #define RESET_DURATION_US 10
 #define DEFAULT_VOLTAGE_IS_1800MV 1
-#define DEFAULT_CH0_CALIBRATION_OFFSET UINT32_MAX
+#define DEFAULT_CH0_CALIBRATION_OFFSET 0x1C0
 #define DEFAULT_CH1_CALIBRATION_OFFSET 0
 
 /* Static function pre-definition */
@@ -86,7 +86,6 @@ static const uintptr_t ch0_mmap_base = 0x20000000;
 static const size_t ch0_mmap_size = 0x08000000;
 static const uintptr_t ch1_mmap_base = 0x28000000;
 static const size_t ch1_mmap_size = 0x08000000;
-static const uintptr_t load_base = BL2_BASE;
 
 /* !!! DO NOT TOUCH THESE SETTINGS !!! They are used for doing initialize. */
 static const uint32_t init_octa_dcr_value = 0;
@@ -119,7 +118,7 @@ static const uint32_t init_octa_drcstr_value = 0 |
 	0u << OCTA_DRCSTR_DVRDLO1_POS |
 	0u << OCTA_DRCSTR_DVRDHI1_POS |
 	0u << OCTA_DRCSTR_DVRDCMD1_POS |
-#if !RZA3UL
+#if !RZA3
 	0u << OCTA_DRCSTR_CTR1_POS |
 	127u << OCTA_DRCSTR_CTRW1_POS |
 #endif
@@ -313,17 +312,7 @@ static int octa_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg)
 		if (ext && ext->calibration_base != 0) {
 			ch0_calibration_offset = ext->calibration_base;
 		}
-		if (ch0_calibration_offset == UINT32_MAX) {
-			/* Calculate offset from Flash base */
-			uintptr_t offset = (uintptr_t)&preamble[0];
-			offset -= load_base;
-			offset += 0x200;
-			assert(offset <= UINT32_MAX);
-			myctrl->calibration_base = (uint32_t)offset;
-		}
-		else {
-			myctrl->calibration_base = ch0_calibration_offset;
-		}
+		myctrl->calibration_base = ch0_calibration_offset;
 		mmio_write_32(myctrl->reg_base + OCTA_ACAR0, myctrl->calibration_base);
 	}
 	myctrl->device_type = device_type;
@@ -430,27 +419,33 @@ static int octa_post_init(xspi_ctrl_t * const ctrl)
 	return result;
 }
 
-static void octa_test_ddr(xspi_op_t const * const op)
+static int octa_test_ddr(xspi_op_t const * const op)
 {
-	assert(op->op_is_ddr == op->address_is_ddr);
-	assert(!(!op->op_is_ddr && !op->address_is_ddr && op->transfer_is_ddr));
+	if (!(op->op_is_ddr == op->address_is_ddr)) return -1;
+	if (!op->op_is_ddr && !op->address_is_ddr && op->transfer_is_ddr) return -1;
+	return 0;
 }
 
-static void octa_test_form(octa_ctrl_t const * const myctrl, xspi_op_t const * const op)
+static int octa_test_form(octa_ctrl_t const * const myctrl, xspi_op_t const * const op)
 {
-	assert(myctrl->device_type!=OCTA_DSR_TYP_NONE);
-	assert((myctrl->device_type==OCTA_DSR_TYP_FLASH &&
+	if (!(myctrl->device_type!=OCTA_DSR_TYP_NONE)) return -1;
+	if (!((myctrl->device_type==OCTA_DSR_TYP_FLASH &&
 			(op->form==SPI_FORM_8_8_8 || (op->form==SPI_FORM_1_1_1 && !op->op_is_ddr && !op->address_is_ddr && !op->transfer_is_ddr))) ||
-		(myctrl->device_type==OCTA_DSR_TYP_RAM && op->form==SPI_FORM_8_8_8 && op->op_is_ddr && op->address_is_ddr && op->transfer_is_ddr));
+		(myctrl->device_type==OCTA_DSR_TYP_RAM && op->form==SPI_FORM_8_8_8 && op->op_is_ddr && op->address_is_ddr && op->transfer_is_ddr))) return -1;
+	return 0;
 }
 
 static int octa_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bool is_write)
 {
 	assert(!!ctrl);
 	assert(!!op);
+	int res;
 	octa_ctrl_t * myctrl = (octa_ctrl_t *)ctrl;
-	octa_test_ddr(op);
-	octa_test_form(myctrl, op);
+	res = octa_test_ddr(op);
+	if (!!res) return res;
+	res = octa_test_form(myctrl, op);
+	if (!!res) return res;
+
 	assert(	op->transfer_size==0 ||
 		op->transfer_size==1 ||
 		op->transfer_size==2 ||
@@ -552,7 +547,7 @@ static int octa_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 
 	/* change transfer order */
 	dcsr_clear |= OCTA_DCSR_DAOR;
-	if (~op->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DTR) {
+	if (~op->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DDR) {
 		if (op->transfer_is_ddr) {
 			dcsr_set |= OCTA_DCSR_DAOR;
 		}
@@ -636,7 +631,7 @@ static void octa_configure_xip_ch1(octa_ctrl_t * const myctrl, xspi_op_t const *
 		mrwcr_clear |= OCTA_MRWCR1_D1MRCMD0 | OCTA_MRWCR1_D1MRCMD1;
 		mrwcr_set |= (uint32_t)rop->op << OCTA_MRWCR1_D1MRCMD0_POS;
 		mrwcsr_clear |= OCTA_MRWCSR_MRO1 | OCTA_MRWCSR_MRCL1 | OCTA_MRWCSR_MRAL1;
-		if (rop->transfer_is_ddr && ~rop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DTR) {
+		if (rop->transfer_is_ddr && ~rop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DDR) {
 			mrwcsr_set |= 1u << OCTA_MRWCSR_MRO1_POS;
 		}
 		mrwcsr_set |= rop->op_size << OCTA_MRWCSR_MRCL1_POS;
@@ -655,7 +650,7 @@ static void octa_configure_xip_ch1(octa_ctrl_t * const myctrl, xspi_op_t const *
 		mrwcr_clear |= OCTA_MRWCR1_D1MWCMD0 | OCTA_MRWCR1_D1MWCMD1;
 		mrwcr_set |= (uint32_t)wop->op << OCTA_MRWCR1_D1MWCMD0_POS;
 		mrwcsr_clear |= OCTA_MRWCSR_MWO1 | OCTA_MRWCSR_MWCL1 | OCTA_MRWCSR_MWAL1;
-		if (wop->transfer_is_ddr && ~wop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DTR) {
+		if (wop->transfer_is_ddr && ~wop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DDR) {
 			mrwcsr_set |= 1u << OCTA_MRWCSR_MWO1_POS;
 		}
 		mrwcsr_set |= wop->op_size << OCTA_MRWCSR_MWCL1_POS;
@@ -688,7 +683,7 @@ static void octa_configure_xip_ch0(octa_ctrl_t * const myctrl, xspi_op_t const *
 		mrwcr_clear |= OCTA_MRWCR0_D0MRCMD0 | OCTA_MRWCR0_D0MRCMD1;
 		mrwcr_set |= (uint32_t)rop->op << OCTA_MRWCR0_D0MRCMD0_POS;
 		mrwcsr_clear |= OCTA_MRWCSR_MRO0 | OCTA_MRWCSR_MRCL0 | OCTA_MRWCSR_MRAL0;
-		if (rop->transfer_is_ddr && ~rop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DTR) {
+		if (rop->transfer_is_ddr && ~rop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DDR) {
 			mrwcsr_set |= 1u << OCTA_MRWCSR_MRO0_POS;
 		}
 		mrwcsr_set |= rop->op_size << OCTA_MRWCSR_MRCL0_POS;
@@ -707,7 +702,7 @@ static void octa_configure_xip_ch0(octa_ctrl_t * const myctrl, xspi_op_t const *
 		mrwcr_clear |= OCTA_MRWCR0_D0MWCMD0 | OCTA_MRWCR0_D0MWCMD1;
 		mrwcr_set |= (uint32_t)wop->op << OCTA_MRWCR0_D0MWCMD0_POS;
 		mrwcsr_clear |= OCTA_MRWCSR_MWO0 | OCTA_MRWCSR_MWCL0 | OCTA_MRWCSR_MWAL0;
-		if (wop->transfer_is_ddr && ~wop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DTR) {
+		if (wop->transfer_is_ddr && ~wop->transfer_flag & XSPI_FLAGS_SEQUENTIAL_DDR) {
 			mrwcsr_set |= 1u << OCTA_MRWCSR_MWO0_POS;
 		}
 		mrwcsr_set |= wop->op_size << OCTA_MRWCSR_MWCL0_POS;
@@ -759,7 +754,7 @@ static int octa_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 					mdtr_clear |= OCTA_MDTR_DQSERAM;
 					mdtr_set |= enable_counter << OCTA_MDTR_DQSERAM_POS;
 				}
-				if (myctrl->channel && !RZA3UL) {
+				if (myctrl->channel && !RZA3) {
 					mmio_clrsetbits_32(myctrl->reg_base + OCTA_DRCSTR, OCTA_DRCSTR_CTR1, 0);
 				}
 				else if (!myctrl->channel) {
@@ -774,7 +769,7 @@ static int octa_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 					mdtr_clear |= OCTA_MDTR_DQSEDOPI;
 					mdtr_set |= enable_counter << OCTA_MDTR_DQSEDOPI_POS;
 				}
-				if (myctrl->channel && !RZA3UL) {
+				if (myctrl->channel && !RZA3) {
 					mmio_clrsetbits_32(myctrl->reg_base + OCTA_DRCSTR, OCTA_DRCSTR_CTR1, OCTA_DRCSTR_CTR1);
 				}
 				else if (!myctrl->channel) {
@@ -791,7 +786,7 @@ static int octa_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 				mdtr_clear |= OCTA_MDTR_DQSESOPI;
 				mdtr_set |= enable_counter << OCTA_MDTR_DQSESOPI_POS;
 			}
-			if (myctrl->channel && !RZA3UL) {
+			if (myctrl->channel && !RZA3) {
 				mmio_clrsetbits_32(myctrl->reg_base + OCTA_DRCSTR, OCTA_DRCSTR_CTR1, 0);
 			}
 			else if (!myctrl->channel) {
@@ -1151,8 +1146,8 @@ static uint32_t octa_get_features(xspi_ctrl_t * const ctrl)
 	(void)ctrl;
 	uint32_t features = 0;
 	features |= XSPI_FEATURE_FORM888;
-	features |= XSPI_FEATURE_DTR;
-	features |= XSPI_FEATURE_DTROP;
+	features |= XSPI_FEATURE_DDR;
+	features |= XSPI_FEATURE_DDROP;
 	features |= XSPI_FEATURE_XIP_READ;
 	features |= XSPI_FEATURE_XIP_WRITE;
 

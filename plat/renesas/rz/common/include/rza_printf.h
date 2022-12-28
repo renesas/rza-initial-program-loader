@@ -14,7 +14,7 @@
 #define RZ_UNUSED_PARAM(param)	(void)(param)
 #define STRING(str)		#str
 
-#if (RZA3UL == 1)
+#if (RZA3 == 1)
 #if (DEBUG == 1)
 #define RZA_PRINTF_VERBOSE(...)	printf(__VA_ARGS__)
 #else
@@ -35,6 +35,6 @@
 #define RZA_PRINTF_WARN(...)	WARN(__VA_ARGS__)
 #define RZA_PRINTF_INFO(...)	INFO(__VA_ARGS__)
 
-#endif /* RZA3UL == 1 */
+#endif /* RZA3 == 1 */
 
 #endif  /* _RZA_PRINTF_H_ */

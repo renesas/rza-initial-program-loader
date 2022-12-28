@@ -8,16 +8,20 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 
 ### Current Release
 
-[IPL v1.1.0]
+[IPL v1.2.0]
 ### Supported MPUs
 
 RZ/A3UL
 
 ### Supported RZ/A MPU Kits
 
-- RZ/A3UL-Evaluation-Board-Kit (QSPI version) (RTK9763U02S01000BE)
+- RZ/A3UL-Evaluation-Board-Kit (QSPI version)
 
-- RZ/A3UL-Evaluation-Board-Kit (Octal-SPI version) (RTK9763U02S01001BE)
+  Model number: RTK9763U02S01000BE (J-Link lite not included) / RTK9763U02S01002BE (J-Link Lite included)
+
+- RZ/A3UL-Evaluation-Board-Kit (Octal-SPI version)
+
+  Model number: RTK9763U02S01001BE (J-Link lite not included) / RTK9763U02S01003BE (J-Link Lite included)
 
 ### Development Environment
 

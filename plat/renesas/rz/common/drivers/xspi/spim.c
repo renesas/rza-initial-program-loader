@@ -27,7 +27,6 @@
 #define DEFAULT_SPI_FREQUENCY 66666667
 #define RESET_DURATION_US 10
 #define DEFAULT_VOLTAGE_IS_1800MV 1
-#define DEFAULT_CALIBRATION_OFFSET UINT32_MAX
 
 /* Static function pre-definition */
 static int spim_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg);
@@ -67,15 +66,9 @@ const xspi_api_t spim_api = {
 	.get_features = spim_get_features,
 };
 
-/* DTR test pattern */
-static const uint32_t dtr_pattern = 0xAA00FF55;
-
 /* Static variables */
 static bool globally_initialised = false;
-static bool calibration_done = false;
 static int spi_clock = DEFAULT_SPI_FREQUENCY;
-
-static const uintptr_t load_base = BL2_BASE;
 
 /* Function definitions */
 static void wait_until_32(uintptr_t addr, uint32_t mask, uint32_t data)
@@ -151,37 +144,6 @@ static void spim_init_phy(const spim_ctrl_t * myctrl)
 	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000024);
 	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ2, 0x00000030);
 	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000032);
-}
-
-static int spim_start_calibration(const spim_ctrl_t * myctrl)
-{
-	/* Error if not DTR is selected for XIP mode */
-	uint32_t drdrenr = mmio_read_32(myctrl->reg_base + SPIM_DRDRENR);
-	if (!(drdrenr & SPIM_DRDRENR_DRDRE)) return -1;
-
-	/* Start sequence */
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ2, 0xa5390000);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000000);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ2, 0x00009191);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000022);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ2, 0x00009191);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000024);
-
-	/* Copy DRxxxx to SMxxxx for preparing to run read operation
-	 * from manual mode
-	 */
-	mmio_write_32(myctrl->reg_base + SPIM_SMDRENR, drdrenr);
-	uint32_t drcmr = mmio_read_32(myctrl->reg_base + SPIM_DRCMR);
-	mmio_write_32(myctrl->reg_base + SPIM_SMCMR, drcmr);
-	uint32_t dropr = mmio_read_32(myctrl->reg_base + SPIM_DROPR);
-	mmio_write_32(myctrl->reg_base + SPIM_SMOPR, dropr);
-	uint32_t smenr = mmio_read_32(myctrl->reg_base + SPIM_DRENR);
-	smenr |= SPIM_SMENR_SPIDE_LONG << SPIM_SMENR_SPIDE_POS;
-	mmio_write_32(myctrl->reg_base + SPIM_SMENR, smenr);
-	uint32_t drdmcr = mmio_read_32(myctrl->reg_base + SPIM_DRDMCR);
-	mmio_write_32(myctrl->reg_base + SPIM_SMDMCR, drdmcr);
-
-	return 0;
 }
 
 static const uint32_t cmncr_init_mask =
@@ -299,7 +261,6 @@ static int spim_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg)
 	assert(ctrl);
 	assert(cfg);
 	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
-	spim_ext_t * ext = (spim_ext_t*)cfg->extend;
 
 	if (myctrl->opened) return -1;
 
@@ -313,23 +274,6 @@ static int spim_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg)
 		spim_ip_init(myctrl);
 
 		globally_initialised = true;
-	}
-
-	/* Override calibration base if specified */
-	uint32_t calibration_offset = DEFAULT_CALIBRATION_OFFSET;
-	if (ext && ext->calibration_base != 0) {
-		calibration_offset = ext->calibration_base;
-	}
-	if (calibration_offset == UINT32_MAX) {
-		/* Calculate offset from Flash base */
-		uintptr_t offset = (uintptr_t)&dtr_pattern;
-		offset -= load_base;
-		offset += 0x200;
-		assert(offset <= UINT32_MAX);
-		myctrl->calibration_base = (uint32_t)offset;
-	}
-	else {
-		myctrl->calibration_base = calibration_offset;
 	}
 
 	result = 0;
@@ -417,15 +361,12 @@ static void spim_set_idlelevel(spim_ctrl_t * const myctrl, const xspi_op_t * con
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_CMNCR, cmncr_mask, cmncr_set);
 }
 
-static int spim_reduce_frequency(spim_ctrl_t * const ctrl, bool dtr)
+static int spim_reduce_frequency(spim_ctrl_t * const ctrl)
 {
 	int old_freq = spi_clock;
 	assert(ctrl);
-	if (dtr && spi_clock > RZ_SPIM_DTR_FREQ_LIMIT) {
-		spi_clock = RZ_SPIM_DTR_FREQ_LIMIT;
-	}
-	else if (!dtr && spi_clock > RZ_SPIM_STR_FREQ_LIMIT) {
-		spi_clock = RZ_SPIM_STR_FREQ_LIMIT;
+	if (spi_clock > RZ_SPIM_SDR_FREQ_LIMIT) {
+		spi_clock = RZ_SPIM_SDR_FREQ_LIMIT;
 	}
 	else {
 		/* We do not need to reduce the current SPI frequency */
@@ -448,8 +389,7 @@ static int spim_reduce_frequency(spim_ctrl_t * const ctrl, bool dtr)
 
 static void spim_start_xip_internal(spim_ctrl_t * const ctrl)
 {
-	bool is_dtr = !!(mmio_read_32(ctrl->reg_base + SPIM_DRDRENR)&SPIM_DRDRENR_DRDRE);
-	spim_reduce_frequency(ctrl, is_dtr);
+	spim_reduce_frequency(ctrl);
 	mmio_clrbits_32(ctrl->reg_base + SPIM_CMNCR, SPIM_CMNCR_MD);
 	mmio_read_32(ctrl->reg_base + SPIM_CMNCR);
 }
@@ -482,138 +422,6 @@ static bool spim_stop_xip_temporarily(spim_ctrl_t * myctrl)
 	bool state = !(mmio_read_32(myctrl->reg_base + SPIM_CMNCR) & SPIM_CMNCR_MD);
 	spim_stop_xip_internal(myctrl);
 	return state;
-}
-
-struct delay_setting {
-	uint8_t y:1;
-	uint8_t :3;
-	uint8_t x:1;
-	uint8_t :1;
-	uint8_t zz:2;
-};
-
-static const struct delay_setting adj_table[] = {
-	{ .y=1, .zz=3, .x=0},
-	{ .y=1, .zz=3, .x=1},
-	{ .y=1, .zz=2, .x=0},
-	{ .y=1, .zz=2, .x=1},
-	{ .y=1, .zz=1, .x=0},
-	{ .y=0, .zz=3, .x=0},
-	{ .y=0, .zz=3, .x=1},
-	{ .y=0, .zz=2, .x=0},
-	{ .y=0, .zz=2, .x=1},
-	{ .y=0, .zz=1, .x=0},
-	{ .y=0, .zz=1, .x=1},
-	{ .y=0, .zz=0, .x=0},
-	{ .y=0, .zz=0, .x=1},
-};
-#define NUM_ADJ_TABLES ARRAY_SIZE(adj_table)
-
-/* Update delay */
-static void spim_set_delay(const spim_ctrl_t * myctrl, const struct delay_setting * delay)
-{
-	uint32_t cksel_mask = SPIM_PHYCNT_CKSEL;
-	uint32_t cksel_value = delay->zz << SPIM_PHYCNT_CKSEL_POS;
-	uint32_t phyadj2 = delay->x << 4 | delay->y << 0;
-	mmio_clrsetbits_32(myctrl->reg_base + SPIM_PHYCNT, cksel_mask, cksel_value|SPIM_PHYCNT_CAL);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ2, phyadj2);
-	mmio_write_32(myctrl->reg_base + SPIM_PHYADJ1, 0x80000032);
-}
-
-/* Run simple read op */
-static uint32_t spim_internal_read32(const spim_ctrl_t * myctrl, const uint32_t adr)
-{
-	mmio_write_32(myctrl->reg_base + SPIM_SMADR, adr);
-	uint32_t smcr = SPIM_SMCR_SPIE | SPIM_SMCR_SPIRE;
-	mmio_write_32(myctrl->reg_base + SPIM_SMCR, smcr);
-	test_tend(myctrl);
-	return mmio_read_32(myctrl->reg_base + SPIM_SMRDR0);
-}
-
-/* Find the most longest good part of stat */
-static int find_longest_part(bool *stat, int count, int *top, int *len)
-{
-	int last_top;
-	int last_len;
-	int end;
-	last_top = 0;
-	*len = 0;
-	while (last_top < count) {
-		for (; last_top < count && stat[last_top] == false; ++last_top);
-		if (last_top >= count) break;
-		for (end = last_top + 1; end < count && stat[end] == true; ++end);
-		last_len = end - last_top;
-		if (*len < last_len) {
-			*len = last_len;
-			*top = last_top;
-		}
-		last_top = end;
-	}
-	if (*len < 3) return -1;
-	return 0;
-}
-
-/* Start calibration */
-static int spim_internal_manual_calibration(spim_ctrl_t * myctrl)
-{
-	bool is_xip;
-	int index;
-	int result;
-	bool delay_stat[NUM_ADJ_TABLES];
-	int top;
-	int len;
-
-	is_xip = spim_stop_xip_temporarily(myctrl);
-	result = spim_start_calibration(myctrl);
-
-	INFO("SPIM calibration info\n");
-	INFO("[y zz x]\n");
-
-	if (result == 0) {
-		/* Store the per-delay results */
-		for (index = 0; index < NUM_ADJ_TABLES; index++) {
-			spim_set_delay(myctrl, &adj_table[index]);
-			uint32_t read = spim_internal_read32(myctrl, myctrl->calibration_base);
-			INFO("[%d %d%d %d]=%08x\n",
-				adj_table[index].y, adj_table[index].zz>1?1:0, (adj_table[index].zz&1)?1:0, adj_table[index].x,
-				bswap32(read));
-			delay_stat[index] = !!(read == dtr_pattern);
-		}
-
-		result = find_longest_part(delay_stat, NUM_ADJ_TABLES, &top, &len);
-	}
-
-	if (DEBUG) {
-		char debugstr[NUM_ADJ_TABLES+1];
-		for (index = 0; index < NUM_ADJ_TABLES; index++) {
-			debugstr[index] = delay_stat[index] ? '1' : '0';
-		}
-		debugstr[index] = '\0';
-		INFO("%s\n",debugstr);
-	}
-
-	if (result == 0) {
-		/* Choose median to delay index */
-		index = top + len / 2;
-		spim_set_delay(myctrl, &adj_table[index]);
-		INFO("center=%d\n", index);
-	}
-
-	if (is_xip) {
-		/* Resume XIP state */
-		spim_start_xip_internal(myctrl);
-	}
-	return result;
-}
-
-static int calibration_check(spim_ctrl_t * myctrl)
-{
-	if (!calibration_done) {
-		int res = spim_internal_manual_calibration(myctrl);
-		calibration_done = !(res < 0);
-		return res;
-	}
-	return 0;
 }
 
 static const uint32_t smcmr_clearmask =
@@ -718,15 +526,6 @@ static const uint32_t smenr_additional_3byte =
 static const uint32_t smenr_additional_4byte =
 	SPIM_SMENR_OPDE_4BYTE << SPIM_SMENR_OPDE_POS;
 
-/* SMDRENR value that indicate the address phase is by DDR */
-static const uint32_t smdrenr_address_is_ddr =
-	1u << SPIM_SMDRENR_ADDRE_POS |
-	1u << SPIM_SMDRENR_OPDRE_POS;
-
-/* SMDRENR value that indicate the data phase is by DDR */
-static const uint32_t smdrenr_data_is_ddr =
-	1u << SPIM_SMDRENR_DRDRE_POS;
-
 static void send_256(spim_ctrl_t * myctrl, xspi_transfer_form_t form, uintptr_t buffer, uint32_t smenr)
 {
 	/* Use wbuffer for transfer */
@@ -795,24 +594,15 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 	case SPI_FORM_1_4_4:
 		break;
 	default:
-		ERROR("Unsupported transfer form %d", op->form);
+		ERROR("Unsupported transfer form %d\n", op->form);
 		return -1;
 	}
 
 	/* Save XIP state and stop XIP */
 	is_xip = spim_stop_xip_temporarily(myctrl);
 
-	/* Do calibration and reduce freq. if transfer is DTR read */
-	if (op->transfer_is_ddr) {
-		spim_reduce_frequency(ctrl, true);
-		if (!is_write && op->transfer_size) {
-			int res = calibration_check(myctrl);
-			if (res < 0) return res;
-		}
-	}
-	else {
-		spim_reduce_frequency(ctrl, false);
-	}
+	/* Reduce freq for MPU's AC characteristics */
+	spim_reduce_frequency(ctrl);
 
 	/* Wait for transaction end */
 	test_tend(myctrl);
@@ -845,7 +635,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smenr_set |= smenr_form_144;
 		break;
 	default:
-		ERROR("Unsupported transfer form %d", op->form);
+		ERROR("Unsupported transfer form %d\n", op->form);
 		return -1;
 	}
 
@@ -864,7 +654,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smcmr_set |= (op->op & 0xff00) >> 8 << SPIM_SMCMR_CMD_POS;
 		break;
 	default:
-		ERROR("Unsupported op size %d", op->op_size);
+		ERROR("Unsupported op size %d\n", op->op_size);
 		return -1;
 	}
 
@@ -880,7 +670,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smenr_set |= smenr_addr_4byte;
 		break;
 	default:
-		ERROR("Unsupported address size %d", op->address_size);
+		ERROR("Unsupported address size %d\n", op->address_size);
 		return -1;
 	}
 
@@ -912,7 +702,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smopr |= (op->additional_value & 0xff000000) >> 24 << SPIM_SMOPR_OPD3_POS;
 		break;
 	default:
-		ERROR("Unsupported additional size %d", op->additional_size);
+		ERROR("Unsupported additional size %d\n", op->additional_size);
 		return -1;
 	}
 
@@ -922,7 +712,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smdmcr_set |= 0u << SPIM_SMDMCR_DMCYC_POS;
 	}
 	else if (op->dummy_cycles == 1 || op->dummy_cycles > 20) {
-		ERROR("Unsupported dummy cycle count %d", op->dummy_cycles);
+		ERROR("Unsupported dummy cycle count %d\n", op->dummy_cycles);
 		return -1;
 	}
 	else {
@@ -930,42 +720,22 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		smdmcr_set |= (op->dummy_cycles - 1) << SPIM_SMDMCR_DMCYC_POS;
 	}
 
-	/* DDR indicator for address */
-	if (op->address_is_ddr) {
-		smdrenr_set |= smdrenr_address_is_ddr;
-	}
-
-	/* DDR indicator for data */
-	if (op->transfer_is_ddr) {
-		smdrenr_set |= smdrenr_data_is_ddr;
-	}
-
 	/* PHYOFFSET1 setting */
 	uint32_t phyoffset1_msk = SPIM_PHYOFFSET1_DDRTMG;
 	uint32_t phyoffset1_set;
-	if(op->transfer_is_ddr) {
-		phyoffset1_set = SPIM_PHYOFFSET1_DDR << SPIM_PHYOFFSET1_DDRTMG_POS;
-	}
-	else {
-		phyoffset1_set = SPIM_PHYOFFSET1_SDR << SPIM_PHYOFFSET1_DDRTMG_POS;
-	}
+	phyoffset1_set = SPIM_PHYOFFSET1_SDR << SPIM_PHYOFFSET1_DDRTMG_POS;
 
 	/* PHYCNT setting */
 	uint32_t phycnt_msk = SPIM_PHYCNT_PHYMEM;
 	uint32_t phycnt_set;
-	if(op->address_is_ddr || op->transfer_is_ddr) {
-		phycnt_set = SPIM_PHYCNT_DDR << SPIM_PHYCNT_PHYMEM_POS;
-	}
-	else {
-		phycnt_set = SPIM_PHYCNT_SDR << SPIM_PHYCNT_PHYMEM_POS;
-	}
+	phycnt_set = SPIM_PHYCNT_SDR << SPIM_PHYCNT_PHYMEM_POS;
 
 	/* SLCH (SSL assert to CLK high) */
 	if (op->slch_value < 8) {
 		ssldr_set |= op->slch_value << SPIM_SSLDR_SCKDL_POS;
 	}
 	else {
-		ERROR("Unsupported slch_value %d", op->slch_value);
+		ERROR("Unsupported slch_value %d\n", op->slch_value);
 		return -1;
 	}
 
@@ -974,7 +744,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		ssldr_set |= op->clsh_value << SPIM_SSLDR_SLNDL_POS;
 	}
 	else {
-		ERROR("Unsupported clsh_value %d", op->clsh_value);
+		ERROR("Unsupported clsh_value %d\n", op->clsh_value);
 		return -1;
 	}
 
@@ -983,7 +753,7 @@ static int spim_exec_op(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bo
 		ssldr_set |= op->shsl_value << SPIM_SSLDR_SPNDL_POS;
 	}
 	else {
-		ERROR("Unsupported shsl_value %d", op->shsl_value);
+		ERROR("Unsupported shsl_value %d\n", op->shsl_value);
 		return -1;
 	}
 
@@ -1189,20 +959,11 @@ static const uint32_t drenr_additional_3byte =
 static const uint32_t drenr_additional_4byte =
 	SPIM_DRENR_OPDE_4BYTE << SPIM_DRENR_OPDE_POS;
 
-/* DRDRENR value that indicate the address phase is by DDR */
-static const uint32_t drdrenr_address_is_ddr =
-	1u << SPIM_DRDRENR_ADDRE_POS |
-	1u << SPIM_DRDRENR_OPDRE_POS;
-
-/* DRDRENR value that indicate the data phase is by DDR */
-static const uint32_t drdrenr_data_is_ddr =
-	1u << SPIM_DRDRENR_DRDRE_POS;
-
 static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const rop, xspi_op_t const * const wop)
 {
 	assert(ctrl);
-	assert(rop);
-	assert(!wop);
+	if (!rop) return -1;
+	if (wop) return -1;
 	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
 
 	uint32_t drcmr = mmio_read_32(myctrl->reg_base + SPIM_DRCMR);
@@ -1239,7 +1000,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		drenr |= drenr_form_144;
 		break;
 	default:
-		ERROR("Unsupported transfer form %d for rop", rop->form);
+		ERROR("Unsupported transfer form %d for rop\n", rop->form);
 		return -1;
 	}
 
@@ -1258,7 +1019,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		drcmr |= (rop->op & 0xff00) >> 8 << SPIM_DRCMR_CMD_POS;
 		break;
 	default:
-		ERROR("Unsupported op size %d for rop", rop->op_size);
+		ERROR("Unsupported op size %d for rop\n", rop->op_size);
 		return -1;
 	}
 
@@ -1274,7 +1035,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		drenr |= drenr_addr_4byte;
 		break;
 	default:
-		ERROR("Unsupported address size %d for rop", rop->address_size);
+		ERROR("Unsupported address size %d for rop\n", rop->address_size);
 		return -1;
 	}
 
@@ -1306,7 +1067,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		dropr |= (rop->additional_value & 0xff000000) >> 24 << SPIM_DROPR_OPD3_POS;
 		break;
 	default:
-		ERROR("Unsupported additional size %d for rop", rop->additional_size);
+		ERROR("Unsupported additional size %d for rop\n", rop->additional_size);
 		return -1;
 	}
 
@@ -1316,7 +1077,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		drdmcr |= 0u << SPIM_DRDMCR_DMCYC_POS;
 	}
 	else if (rop->dummy_cycles == 1 || rop->dummy_cycles > 20) {
-		ERROR("Unsupported dummy cycle count %d for rop", rop->dummy_cycles);
+		ERROR("Unsupported dummy cycle count %d for rop\n", rop->dummy_cycles);
 		return -1;
 	}
 	else {
@@ -1324,31 +1085,11 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		drdmcr |= (rop->dummy_cycles - 1) << SPIM_DRDMCR_DMCYC_POS;
 	}
 
-	/* DDR indicator for address */
-	if (rop->address_is_ddr) {
-		drdrenr |= drdrenr_address_is_ddr;
-	}
+	/* Set operation timing for PHYOFFSET1 */
+	phyoffset1_set = SPIM_PHYOFFSET1_SDR << SPIM_PHYOFFSET1_DDRTMG_POS;
 
-	/* DDR indicator for data */
-	if (rop->transfer_is_ddr) {
-		drdrenr |= drdrenr_data_is_ddr;
-	}
-
-	/* DDR indicator for PHYOFFSET1 */
-	if (rop->transfer_is_ddr) {
-		phyoffset1_set = SPIM_PHYOFFSET1_DDR << SPIM_PHYOFFSET1_DDRTMG_POS;
-	}
-	else {
-		phyoffset1_set = SPIM_PHYOFFSET1_SDR << SPIM_PHYOFFSET1_DDRTMG_POS;
-	}
-
-	/* DDR indicator for PHYCNT */
-	if (rop->address_is_ddr || rop->transfer_is_ddr) {
-		phycnt_set = SPIM_PHYCNT_DDR << SPIM_PHYCNT_PHYMEM_POS;
-	}
-	else {
-		phycnt_set = SPIM_PHYCNT_SDR << SPIM_PHYCNT_PHYMEM_POS;
-	}
+	/* Set data transfer mode for PHYCNT */
+	phycnt_set = SPIM_PHYCNT_SDR << SPIM_PHYCNT_PHYMEM_POS;
 
 	/* SLCH (SSL assert to CLK high) */
 	if (rop->slch_value < 8) {
@@ -1356,7 +1097,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		ssldr_set |= rop->slch_value << SPIM_SSLDR_SCKDL_POS;
 	}
 	else {
-		ERROR("Unsupported slch_value %d for rop", rop->slch_value);
+		ERROR("Unsupported slch_value %d for rop\n", rop->slch_value);
 		return -1;
 	}
 
@@ -1366,7 +1107,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		ssldr_set |= rop->clsh_value << SPIM_SSLDR_SLNDL_POS;
 	}
 	else {
-		ERROR("Unsupported clsh_value %d for rop", rop->clsh_value);
+		ERROR("Unsupported clsh_value %d for rop\n", rop->clsh_value);
 		return -1;
 	}
 
@@ -1376,7 +1117,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 		ssldr_set |= rop->shsl_value << SPIM_SSLDR_SPNDL_POS;
 	}
 	else {
-		ERROR("Unsupported shsl_value %d for rop", rop->shsl_value);
+		ERROR("Unsupported shsl_value %d for rop\n", rop->shsl_value);
 		return -1;
 	}
 
@@ -1392,12 +1133,7 @@ static int spim_configure_xip(xspi_ctrl_t * const ctrl, xspi_op_t const * const 
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_PHYCNT, phycnt_msk, phycnt_set|SPIM_PHYCNT_CAL);
 
 	/* Reduce the SPI freq. */
-	spim_reduce_frequency(ctrl, rop->transfer_is_ddr);
-
-	/* Do calibration if transfer is DTR */
-	if (rop->transfer_is_ddr) {
-		return calibration_check(myctrl);
-	}
+	spim_reduce_frequency(ctrl);
 
 	return 0;
 }
@@ -1422,9 +1158,8 @@ static int spim_stop_xip(xspi_ctrl_t * const ctrl)
 
 static int spim_run_manual_calibration(xspi_ctrl_t * const ctrl)
 {
-	assert(ctrl);
-	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
-	return spim_internal_manual_calibration(myctrl);
+	return -1;
+
 }
 
 static int spim_enable_auto_calibration(xspi_ctrl_t * const ctrl)
@@ -1448,8 +1183,8 @@ static int spim_set_frequency(xspi_ctrl_t * const ctrl, int frequency_hz)
 	int actual_freq = cpg_get_xspi_clock(XSPI_CLOCK_SPIM);
 	if (actual_freq == -1) return -1;
 	actual_freq = actual_freq / 4;
-	if (spi_clock != actual_freq) {
-		INFO("SPIM: Reduces the SPI frequency from %d to %d.\n", spi_clock, actual_freq);
+	if (frequency_hz != actual_freq) {
+		INFO("SPIM: Reduces the SPI frequency from requested %d to %d.\n", frequency_hz, actual_freq);
 	}
 	spi_clock = actual_freq;
 
@@ -1490,8 +1225,6 @@ static uint32_t spim_get_features(xspi_ctrl_t * const ctrl)
 	uint32_t features = 0;
 	features |= XSPI_FEATURE_FORM114;
 	features |= XSPI_FEATURE_FORM144;
-	features |= XSPI_FEATURE_FORM444;
-	features |= XSPI_FEATURE_DTR;
 	features |= XSPI_FEATURE_XIP_READ;
 
 	return features;

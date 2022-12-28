@@ -141,7 +141,7 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 		0x00010000,
 		CPG_T_CLK
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* GPT */
 		(uintptr_t)CPG_CLKON_GPT,
 		(uintptr_t)CPG_CLKMON_GPT,
@@ -158,7 +158,7 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 	{		/* WDT */
 		(uintptr_t)CPG_CLKON_WDT,
 		(uintptr_t)CPG_CLKMON_WDT,
-#if (RZG2UL||RZA3UL)
+#if (RZG2UL||RZA3)
 		0x00300000,
 #else
 		0x003C0000,
@@ -186,7 +186,7 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 		0x00ff00ff,
 		CPG_T_CLK
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* GPU */
 		(uintptr_t)CPG_CLKON_GPU,
 		(uintptr_t)CPG_CLKMON_GPU,
@@ -200,7 +200,7 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 		0x00030000,
 		CPG_T_CLK
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* H.264 codec */
 		(uintptr_t)CPG_CLKON_H264,
 		(uintptr_t)CPG_CLKMON_H264,
@@ -214,7 +214,7 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 		0x001f0000,
 		CPG_T_CLK
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* MIPI-DSI */
 		(uintptr_t)CPG_CLKON_MIPI_DSI,
 		(uintptr_t)CPG_CLKMON_MIPI_DSI,
@@ -345,7 +345,7 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 		0x00010000,
 		CPG_T_RST
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* GPT */
 		(uintptr_t)CPG_RST_GPT,
 		(uintptr_t)CPG_RSTMON_GPT,
@@ -362,7 +362,7 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 	{		/* WDT */
 		(uintptr_t)CPG_RST_WDT,
 		(uintptr_t)CPG_RSTMON_WDT,
-#if (RZG2UL||RZA3UL)
+#if (RZG2UL||RZA3)
 		0x00040000,
 #else
 		0x00060000,
@@ -390,7 +390,7 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 		0x00030003,
 		CPG_T_RST
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* GPU */
 		(uintptr_t)CPG_RST_GPU,
 		(uintptr_t)CPG_RSTMON_GPU,
@@ -404,7 +404,7 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 		0x00030000,
 		CPG_T_RST
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* H.264 codec */
 		(uintptr_t)CPG_RST_H264,
 		(uintptr_t)CPG_RSTMON_H264,
@@ -418,7 +418,7 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 		0x00070000,
 		CPG_T_RST
 	},
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{		/* MIPI-DSI */
 		(uintptr_t)CPG_RST_MIPI_DSI,
 		(uintptr_t)CPG_RSTMON_MIPI_DSI,
@@ -513,13 +513,14 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 };
 
 static CPG_REG_SETTING cpg_static_select_tbl[] = {
-	{ (uintptr_t)CPG_PL3A_DDIV,             0x01000100 },
-	{ (uintptr_t)CPG_PL3_SSEL,              0x01000000 },
+	{ (uintptr_t)CPG_PL3A_DDIV, 0x01000100 },
+	{ (uintptr_t)CPG_PL3_SSEL, 0x01000000 },
 };
 
 static CPG_REG_SETTING cpg_dynamic_select_tbl[] = {
-	{ (uintptr_t)CPG_PL4_DSEL,              0x00010001 },
-	{ (uintptr_t)CPG_PL2SDHI_DSEL, 		0x00110022 },
+	{ (uintptr_t)CPG_PL4_DSEL, 0x00010001 },
+	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00110033 },
+	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00110022 },
 };
 
 #define CPG_SEL_PLL1_ON_OFF					(0)
@@ -548,7 +549,7 @@ static CPG_REG_SETTING cpg_sel_pll2_1_on_off[] = {
 
 static CPG_REG_SETTING cpg_sel_pll2_2_on_off[] = {
 	{(uintptr_t)CPG_CLKON_SDHI, 0x00770077 },
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00200020 },
 #endif
 };
@@ -568,7 +569,7 @@ static CPG_REG_SETTING cpg_sel_pll3_1_on_off[] = {
 	{(uintptr_t)CPG_CLKON_DDR, 0x00030003 },
 	{(uintptr_t)CPG_CLKON_ETH, 0x00030003 },
 	{(uintptr_t)CPG_CLKON_GIC600, 0x00010001 },
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_GPU, 0x00070007 },
 	{(uintptr_t)CPG_CLKON_H264, 0x00010001 },
 #endif
@@ -577,7 +578,7 @@ static CPG_REG_SETTING cpg_sel_pll3_1_on_off[] = {
 	{(uintptr_t)CPG_CLKON_ISU, 0x00030003 },
 	{(uintptr_t)CPG_CLKON_JAUTH, 0x00010001 },
 	{(uintptr_t)CPG_CLKON_LCDC, 0x00010001 },
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x000C000C },
 #endif
 	{(uintptr_t)CPG_CLKON_OTP, 0x00020002 },
@@ -598,7 +599,7 @@ static CPG_REG_SETTING cpg_sel_pll3_1_on_off[] = {
 
 static CPG_REG_SETTING cpg_sel_pll3_2_on_off[] = {
 	{(uintptr_t)CPG_CLKON_CRU, 0x00030003 },
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00020002 },
 	{(uintptr_t)CPG_CLKON_GPU, 0x00010001 },
 #endif
@@ -612,50 +613,50 @@ static CPG_REG_SETTING cpg_sel_pll3_3_on_off[] = {
 };
 
 static CPG_REG_SETTING cpg_sel_pll5_1_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00010001 },
 #endif
 	{(uintptr_t)CPG_CLKON_CRU, 0x00100010 },
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00100010 },
 #endif
 	{(uintptr_t)CPG_CLKON_LCDC, 0x00020002 }
 };
 
 static CPG_REG_SETTING cpg_sel_pll5_3_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00100010 },
 #endif
 	{(uintptr_t)CPG_CLKON_LCDC, 0x00020002 }
 };
 
 static CPG_REG_SETTING cpg_sel_pll5_4_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00100010 },
 #endif
 	{(uintptr_t)CPG_CLKON_LCDC, 0x00020002 }
 };
 
 static CPG_REG_SETTING cpg_sel_pll6_1_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_GPU, 0x00010001 }
 #endif
 };
 
 static CPG_REG_SETTING cpg_sel_gpu1_1_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_GPU, 0x00010001 }
 #endif
 };
 
 static CPG_REG_SETTING cpg_sel_gpu1_2_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_GPU, 0x00010001 }
 #endif
 };
 
 static CPG_REG_SETTING cpg_sel_gpu2_on_off[] = {
-#if !(RZG2UL||RZA3UL)
+#if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_GPU, 0x00010001 }
 #endif
 };
@@ -907,7 +908,7 @@ void cpg_wdtrst_sel_setup(void)
 	uint32_t reg;
 	reg = mmio_read_32(CPG_WDTRST_SEL);
 	reg |=
-#if RZA3UL
+#if RZA3
 		/* setting for RZ/A3UL */
 		WDTRST_SEL_WDTRSTSEL0 | WDTRST_SEL_WDTRSTSEL0_WEN ;
 #elif RZG2UL

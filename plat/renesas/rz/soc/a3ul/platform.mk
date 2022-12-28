@@ -14,6 +14,7 @@ PLAT_INCLUDES	+=	-Iplat/renesas/rz/soc/a3ul/include
 
 DDR_SOURCES += plat/renesas/rz/soc/a3ul/drivers/ddr/ddr_a3ul.c
 
+RZA3 := 1
 RZA3UL := 1
 DEVICE_TYPE := 1
 ARCH_TYPE := ARMv8A
@@ -22,6 +23,7 @@ ifeq (${SOC_TYPE},2)
 DEVICE_TYPE := 2
 endif
 
+$(eval $(call add_define,RZA3))
 $(eval $(call add_define,RZA3UL))
 $(eval $(call add_define,DEVICE_TYPE))
 $(eval $(call add_define,ARCH_TYPE))

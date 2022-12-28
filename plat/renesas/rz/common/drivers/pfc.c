@@ -10,7 +10,7 @@
 #include <lib/mmio.h>
 
 static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
-#if (RZG2UL||RZA3UL)
+#if (RZG2UL||RZA3)
 	/* P0(sd0) & P0(sd1)	*/
 	{
 		{ PFC_ON,  (uintptr_t)PFC_PMC10,  0x0F },					/* PMC */
@@ -40,7 +40,7 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 		{ PFC_OFF, (uintptr_t)NULL,       0 }						/* IEN */
 	},
 #endif
-#if (RZG2UL||RZA3UL)
+#if (RZG2UL||RZA3)
 #if (DEVICE_TYPE == 1)
 	/* P6(scif0) */
 	{
@@ -85,7 +85,7 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 };
 
 static PFC_REGS  pfc_qspi_reg_tbl[PFC_QSPI_TBL_NUM] = {
-#if RZA3UL
+#if RZA3
 	/* QSPI0 */
 	{
 		{ PFC_OFF, (uintptr_t)NULL,       0 },						/* PMC */
@@ -144,7 +144,7 @@ static PFC_REGS  pfc_qspi_reg_tbl[PFC_QSPI_TBL_NUM] = {
 #endif
 };
 
-#ifndef RZA3UL
+#ifndef RZA3
 static PFC_REGS  pfc_sd_reg_tbl[PFC_SD_TBL_NUM] = {
 	/* SD0_CLK */
 	{
@@ -250,7 +250,7 @@ static void pfc_qspi_setup(void)
 	}
 }
 
-#ifndef RZA3UL
+#ifndef RZA3
 static void pfc_sd_setup(void)
 {
 	int      cnt;
@@ -292,7 +292,7 @@ void pfc_setup(void)
 {
 	pfc_mux_setup();
 	pfc_qspi_setup();
-#ifndef RZA3UL
+#ifndef RZA3
 	pfc_sd_setup();
 #endif
 }

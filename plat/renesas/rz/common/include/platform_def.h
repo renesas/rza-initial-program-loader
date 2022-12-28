@@ -82,7 +82,7 @@
  * Platform specific page table and MMU setup constants
  ******************************************************************************/
 #if IMAGE_BL2
-#if RZA3UL
+#if RZA3
 #define MAX_XLAT_TABLES			U(4)
 #else
 #define MAX_XLAT_TABLES			U(6)

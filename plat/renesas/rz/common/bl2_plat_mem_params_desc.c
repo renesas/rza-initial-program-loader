@@ -33,7 +33,7 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
 	}
 #else
 	{
-#if RZA3UL
+#if RZA3
 		.image_id = BL31_IMAGE_ID,
 
 		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
@@ -104,7 +104,7 @@ static bl_mem_params_node_t bl2_mem_params_descs[] = {
 		.image_info.image_base = BL33_BASE,
 
 		.next_handoff_image_id = INVALID_IMAGE_ID,
-#endif /* RZA3UL */
+#endif /* RZA3 */
 	}
 #endif /* (APPLOAD == RZ_NOFIP) */
 };

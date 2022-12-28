@@ -15,8 +15,7 @@ RZ_XSPI1_IF_CONFIG:=.channel=0, .base=0x10080000
 RZ_XSPI2_IF:=octa
 RZ_XSPI2_IF_CONFIG:=.channel=1, .base=0x10080000
 RZ_XSPI_EXCLUSIVE_SELECTOR:=1
-RZ_SPIM_STR_FREQ_LIMIT:=66625000
-RZ_SPIM_DTR_FREQ_LIMIT:=50000000
+RZ_SPIM_SDR_FREQ_LIMIT:=66625000
 RZ_OCTA_FREQ_LIMIT:=100000000
 
 ifneq ($(strip $(XSPI0_DEVICE)),)
@@ -31,6 +30,5 @@ endif
 include plat/renesas/rz/common/rz_xspi_common.mk
 
 $(eval $(call add_define,RZ_XSPI_EXCLUSIVE_SELECTOR))
-$(eval $(call add_define,RZ_SPIM_STR_FREQ_LIMIT))
-$(eval $(call add_define,RZ_SPIM_DTR_FREQ_LIMIT))
+$(eval $(call add_define,RZ_SPIM_SDR_FREQ_LIMIT))
 $(eval $(call add_define,RZ_OCTA_FREQ_LIMIT))

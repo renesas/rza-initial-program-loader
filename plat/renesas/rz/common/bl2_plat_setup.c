@@ -28,7 +28,7 @@
 #include <rza_ipl_version.h>
 #include <rza_mmu.h>
 
-#ifndef RZA3UL
+#ifndef RZA3
 static const mmap_region_t rzg2l_mmap[] = {
 	/* MMU table for non-RZ/A3UL */
 #if TRUSTED_BOARD_BOOT
@@ -47,7 +47,7 @@ static const mmap_region_t rzg2l_mmap[] = {
 		MT_MEMORY | MT_RW | MT_SECURE),
 	{0}
 };
-#endif /* RZA3UL */
+#endif /* RZA3 */
 
 static console_t rzg2l_bl31_console;
 
@@ -124,7 +124,7 @@ void bl2_el3_early_platform_setup(u_register_t arg1, u_register_t arg2,
 
 void bl2_el3_plat_arch_setup(void)
 {
-#if RZA3UL
+#if RZA3
 	rza_mmu_pgtbl_cfg_t g_mmu_pagetable_array[] = {
 		/* vaddress, paddress,   size,       attribute */
 		{0x00000000, 0x00000000, 0x00200000, RZA_MMU_ATTRIBUTE_NORMAL_CACHEABLE},
@@ -148,9 +148,9 @@ void bl2_el3_plat_arch_setup(void)
 		MT_RO_DATA  | MT_SECURE),
 	{0}
 	};
-#endif /* RZA3UL */
+#endif /* RZA3 */
 
-#if RZA3UL
+#if RZA3
 	if (0 != plat_mmu_init(g_mmu_pagetable_array)) {
 		panic();
 	}

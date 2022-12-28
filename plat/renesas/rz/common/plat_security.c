@@ -114,7 +114,7 @@ void plat_tzc400_setup(uintptr_t tzc_base, const arm_tzc_regions_info_t *tzc_reg
 static void bl2_security_setup(void)
 {
 	const arm_tzc_regions_info_t ddr_tzc_regions[] = {
-#ifndef RZA3UL
+#ifndef RZA3
 #if TRUSTED_BOARD_BOOT
 		/* security for BL31 and OP-TEE */
 		{PLAT_FW_TZC_PROT_DRAM1_BASE, PLAT_FW_TZC_PROT_DRAM1_END,

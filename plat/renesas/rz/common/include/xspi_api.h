@@ -26,12 +26,12 @@
 #define XSPI_FEATURE_OCTAL	(XSPI_FEATURE_FORM118|XSPI_FEATURE_FORM188|XSPI_FEATURE_FORM888)
 #define XSPI_FEATURE_XIP_READ	(1u << 12)	/* XIP Read operation support */
 #define XSPI_FEATURE_XIP_WRITE	(1u << 13)	/* XIP Write operation support */
-#define XSPI_FEATURE_DTROP	(1u << 14)	/* DTR support for OP */
-#define XSPI_FEATURE_DTR	(1u << 15)	/* DTR support for Address/Data */
+#define XSPI_FEATURE_DDROP	(1u << 14)	/* DDR support for OP */
+#define XSPI_FEATURE_DDR	(1u << 15)	/* DDR support for Address/Data */
 #define XSPI_FEATURE_OCTARAM	(1u << 16)	/* OctaRAM addressing (RAS/CAS) supported */
 
 /** xSPI transfer additional flags */
-#define XSPI_FLAGS_SEQUENTIAL_DTR	(1u << 0)	/* Enable inverted order for DTR transfer */
+#define XSPI_FLAGS_SEQUENTIAL_DDR	(1u << 0)	/* Enable inverted order for DDR transfer */
 #define XSPI_FLAGS_FORCE_STROBE		(1u << 1)	/* Force to use of data strobe signal for timing reference */
 #define XSPI_FLAGS_DATA_ACCESS		(1u << 2)	/* Force to use data access method for exec_op */
 

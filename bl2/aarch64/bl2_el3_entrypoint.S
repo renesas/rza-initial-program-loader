@@ -21,7 +21,7 @@
 #define FIXUP_SIZE	((BL2_LIMIT) - (BL2_BASE))
 #endif
 
-#if RZA3UL
+#if RZA3
 #define SYS_REG_BASE		(0x1102)
 #define SYS_REG_LSI_MODE	(0xA00)
 #define SYS_BITPOS_LSI_MODE_STAT_DEBUGEN	(9)
@@ -31,7 +31,7 @@
 #endif
 
 func bl2_entrypoint
-#if RZA3UL
+#if RZA3
 	/* clear icache (SCTLR_EL3 init) */
 	mov_imm	x4, (SCTLR_RESET_VAL & ~(SCTLR_EE_BIT | SCTLR_WXN_BIT \
 			| SCTLR_SA_BIT | SCTLR_A_BIT | SCTLR_DSSBS_BIT))
