@@ -88,6 +88,7 @@ include drivers/arm/gic/v3/gicv3.mk
 
 # BL2 only for RZ/A3UL
 ifneq (${PLAT},a3ul)
+ifneq (${PLAT},a3m)
 BL31_SOURCES	+=	lib/cpus/aarch64/cortex_a55.S					\
 					${GICV3_SOURCES}								\
 					drivers/arm/tzc/tzc400.c						\
@@ -102,6 +103,7 @@ BL31_SOURCES	+=	lib/cpus/aarch64/cortex_a55.S					\
 					plat/renesas/rz/common/rz_sip_svc.c				\
 					plat/renesas/rz/common/aarch64/plat_helpers.S	\
 					plat/renesas/rz/common/drivers/syc.c
+endif
 endif
 
 include lib/xlat_tables_v2/xlat_tables.mk

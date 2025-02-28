@@ -22,11 +22,13 @@ LOG_LEVEL := 10
 ifeq (${SOC_TYPE},2)
 DEVICE_TYPE := 2
 endif
+RZA3_XSPI_MEMORY_BASE := 0x20000000
 
 $(eval $(call add_define,RZA3))
 $(eval $(call add_define,RZA3UL))
 $(eval $(call add_define,DEVICE_TYPE))
 $(eval $(call add_define,ARCH_TYPE))
+$(eval $(call add_define,RZA3_XSPI_MEMORY_BASE))
 
 # set file name
 RZ_ELF:=$(BUILD_PLAT)/rz$(BOARD)_ipl.elf
@@ -46,7 +48,7 @@ $(RZ_ELF): $(BL2_ELF)
 
 $(RZ_BIN): $(BL2_BIN)
 	@echo "  IMG     $@"
-	$(Q)/usr/bin/perl ./plat/renesas/rz/common/rz_image.pl "$<" "$@"
+	$(Q)/usr/bin/perl ./plat/renesas/rz/soc/a3ul/rz_image.pl "$<" "$@"
 
 $(BL2_MAP): $(BL2_ELF)
 $(RZ_MAP): $(BL2_MAP)
@@ -58,3 +60,7 @@ $(RZ_DUMP): $(BL2_DUMP)
 $(RZ_SREC): $(RZ_BIN)
 	@echo "  SREC    $@"
 	$(Q)$(OC) -I binary -O srec --adjust-vma=0x20000000 --srec-forceS3 "$<" "$@"
+
+ifeq (${RZ_TEST},1)
+-include plat/renesas/rz/common/drivers/tests/rz_test.mk
+endif

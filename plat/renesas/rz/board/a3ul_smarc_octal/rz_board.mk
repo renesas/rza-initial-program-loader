@@ -10,6 +10,10 @@ XSPI2_DEVICE?=octaram_apsxx
 XSPI2_IF_OPTION?=.device_size=64*1024*1024
 XSPI_DEVICE_TYPE:=OCTA
 
+NAND:=0
+RZ_FLASH_SIZE ?= 134217728 # 128MB
+$(eval $(call add_define,RZ_FLASH_SIZE))
+
 ifneq (${USE_SDRAM},0)
 DDR_SOURCES	+=	plat/renesas/rz/soc/${PLAT}/drivers/ddr/param_mc_C-011_D4-01-2.c	\
 				plat/renesas/rz/common/drivers/ddr/param_swizzle_T3bcud2.c

@@ -282,6 +282,7 @@ static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg)
 	assert(ctrl);
 	assert(cfg);
 	int result;
+	enum xspidevice_write_status ws;
 	octaflash_mx66uw_ctrl_t * myctrl = (octaflash_mx66uw_ctrl_t *)ctrl;
 	const xspi_instance_t * xspi = cfg->xspi;
 
@@ -295,8 +296,14 @@ static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg)
 		udelay(SPI_POST_RESET_WAIT);
 		flash_write_enable_spi(myctrl);
 		flash_write_config_register2_spi(myctrl, 0x00000300, 5);
+
 		flash_write_enable_spi(myctrl);
 		flash_write_config_register2_spi(myctrl, 0x00000000, 2);
+
+		do {
+			ws = flash_get_write_status(ctrl);
+		} while(ws == WRITE_STATUS_IN_PROGRESS);
+
 		myctrl->opened = true;
 	}
 

@@ -8,9 +8,21 @@
 #include <stddef.h>
 #include <pfc_regs.h>
 #include <lib/mmio.h>
+#include <common/debug.h>
 
-static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
+static PFC_REGS pfc_mux_reg_tbl[] = {
 #if (RZG2UL||RZA3)
+#if RZA3M
+	/* P22(sd0)	*/
+	{
+		{ PFC_ON,  (uintptr_t)PFC_PMC04,  0x3e },                   /* PMC */
+		{ PFC_ON,  (uintptr_t)PFC_PFC04,  0 },                      /* PFC */
+		{ PFC_OFF, (uintptr_t)PFC_IOLH04, 0x0000010101010101 },     /* IOLH */
+		{ PFC_OFF, (uintptr_t)PFC_PUPD04, 0x0000000000000000 },     /* PUPD */
+		{ PFC_OFF, (uintptr_t)PFC_SR04,   0x0000010101010101 },     /* SR */
+		{ PFC_ON,  (uintptr_t)NULL,       0 }                       /* IEN */
+	},
+#else /* RZA3M */
 	/* P0(sd0) & P0(sd1)	*/
 	{
 		{ PFC_ON,  (uintptr_t)PFC_PMC10,  0x0F },					/* PMC */
@@ -20,6 +32,7 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 		{ PFC_OFF, (uintptr_t)PFC_SR10,   0x0000000001010101 },		/* SR */
 		{ PFC_OFF, (uintptr_t)NULL,       0 }						/* IEN */
 	},
+#endif /* RZA3M */
 #else
 	/* P18(sd0) */
 	{
@@ -41,6 +54,17 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 	},
 #endif
 #if (RZG2UL||RZA3)
+#if RZA3M
+	/* P6(scif0) */
+	{
+		{ PFC_ON,  (uintptr_t)PFC_PMC16,  0x3 },                    /* PMC */
+		{ PFC_ON,  (uintptr_t)PFC_PFC16,  0x11 },                   /* PFC */
+		{ PFC_OFF, (uintptr_t)PFC_IOLH16, 0x0000000000000101 },     /* IOLH */
+		{ PFC_OFF, (uintptr_t)PFC_PUPD16, 0x0000000000000000 },     /* PUPD */
+		{ PFC_OFF, (uintptr_t)PFC_SR16,   0x0000000000000101 },     /* SR */
+		{ PFC_OFF, (uintptr_t)NULL,       0 }                       /* IEN */
+	},
+#else /* RZA3M */
 #if (DEVICE_TYPE == 1)
 	/* P6(scif0) */
 	{
@@ -62,6 +86,7 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 		{ PFC_OFF, (uintptr_t)NULL,       0 }						/* IEN */
 	},
 #endif
+#endif /* RZA3M */
 #else
 	/* P38(scif0) */
 	{
@@ -84,8 +109,19 @@ static PFC_REGS pfc_mux_reg_tbl[PFC_MUX_TBL_NUM] = {
 #endif
 };
 
-static PFC_REGS  pfc_qspi_reg_tbl[PFC_QSPI_TBL_NUM] = {
+static PFC_REGS  pfc_qspi_reg_tbl[] = {
 #if RZA3
+#if RZA3M
+    /* QSPI0 */
+    {
+        { PFC_OFF, (uintptr_t)NULL,       0 },                      /* PMC */
+        { PFC_OFF, (uintptr_t)NULL,       0 },                      /* PFC */
+        { PFC_ON,  (uintptr_t)PFC_IOLH05, 0x0000010101010101 },     /* IOLH */
+        { PFC_ON,  (uintptr_t)PFC_PUPD05, 0x0000000000000000 },     /* PUPD */
+        { PFC_ON,  (uintptr_t)PFC_SR05,   0x0000010101010101 },     /* SR */
+        { PFC_OFF, (uintptr_t)NULL,       0 }                       /* IEN */
+    },
+#else /* RZA3M */
 	/* QSPI0 */
 	{
 		{ PFC_OFF, (uintptr_t)NULL,       0 },						/* PMC */
@@ -113,6 +149,7 @@ static PFC_REGS  pfc_qspi_reg_tbl[PFC_QSPI_TBL_NUM] = {
 		{ PFC_ON,  (uintptr_t)PFC_SR0C,   0x0000000000000000 },		/* SR */
 		{ PFC_OFF, (uintptr_t)NULL,       0 }						/* IEN */
 	}
+#endif /* RZA3M */
 #else
 	/* QSPI0 */
 	{
@@ -145,7 +182,7 @@ static PFC_REGS  pfc_qspi_reg_tbl[PFC_QSPI_TBL_NUM] = {
 };
 
 #ifndef RZA3
-static PFC_REGS  pfc_sd_reg_tbl[PFC_SD_TBL_NUM] = {
+static PFC_REGS  pfc_sd_reg_tbl[] = {
 	/* SD0_CLK */
 	{
 #if RZG2UL
@@ -198,19 +235,12 @@ static PFC_REGS  pfc_sd_reg_tbl[PFC_SD_TBL_NUM] = {
 static void pfc_mux_setup(void)
 {
 	int      cnt;
+	int      size = ARRAY_SIZE(pfc_mux_reg_tbl);
 
-	/* multiplexer terminal switching */
-	mmio_write_32(PFC_PWPR, 0x0);
-	mmio_write_32(PFC_PWPR, PWPR_PFCWE);
-
-	for (cnt = 0; cnt < PFC_MUX_TBL_NUM; cnt++) {
+	for (cnt = 0; cnt < size; cnt++) {
 		/* PMC */
 		if (pfc_mux_reg_tbl[cnt].pmc.flg == PFC_ON) {
 			mmio_write_8(pfc_mux_reg_tbl[cnt].pmc.reg, pfc_mux_reg_tbl[cnt].pmc.val);
-		}
-		/* PFC */
-		if (pfc_mux_reg_tbl[cnt].pfc.flg == PFC_ON) {
-			mmio_write_32(pfc_mux_reg_tbl[cnt].pfc.reg, pfc_mux_reg_tbl[cnt].pfc.val);
 		}
 		/* IOLH */
 		if (pfc_mux_reg_tbl[cnt].iolh.flg == PFC_ON) {
@@ -225,6 +255,16 @@ static void pfc_mux_setup(void)
 			mmio_write_64(pfc_mux_reg_tbl[cnt].sr.reg, pfc_mux_reg_tbl[cnt].sr.val);
 		}
 	}
+	/* multiplexer terminal switching */
+	mmio_write_32(PFC_PWPR, 0x0);
+	mmio_write_32(PFC_PWPR, PWPR_PFCWE);
+
+	for (cnt = 0; cnt < size; cnt++) {
+		/* PFC */
+		if (pfc_mux_reg_tbl[cnt].pfc.flg == PFC_ON) {
+			mmio_write_32(pfc_mux_reg_tbl[cnt].pfc.reg, pfc_mux_reg_tbl[cnt].pfc.val);
+		}
+	}
 
 	mmio_write_32(PFC_PWPR, 0x0);
 	mmio_write_32(PFC_PWPR, PWPR_B0Wl);
@@ -233,8 +273,13 @@ static void pfc_mux_setup(void)
 static void pfc_qspi_setup(void)
 {
 	int      cnt;
+	int      size = ARRAY_SIZE(pfc_qspi_reg_tbl);
 
-	for (cnt = 0; cnt < PFC_QSPI_TBL_NUM; cnt++) {
+	for (cnt = 0; cnt < size; cnt++) {
+		/* PMC */
+		if (pfc_qspi_reg_tbl[cnt].pmc.flg == PFC_ON) {
+			mmio_write_64(pfc_qspi_reg_tbl[cnt].pmc.reg, pfc_qspi_reg_tbl[cnt].pmc.val);
+		}
 		/* IOLH */
 		if (pfc_qspi_reg_tbl[cnt].iolh.flg == PFC_ON) {
 			mmio_write_64(pfc_qspi_reg_tbl[cnt].iolh.reg, pfc_qspi_reg_tbl[cnt].iolh.val);
@@ -248,18 +293,31 @@ static void pfc_qspi_setup(void)
 			mmio_write_64(pfc_qspi_reg_tbl[cnt].sr.reg, pfc_qspi_reg_tbl[cnt].sr.val);
 		}
 	}
+	/* multiplexer terminal switching */
+	mmio_write_32(PFC_PWPR, 0x0);
+	mmio_write_32(PFC_PWPR, PWPR_PFCWE);
+	for (cnt = 0; cnt < size; cnt++) {
+		/* SR */
+		if (pfc_qspi_reg_tbl[cnt].pfc.flg == PFC_ON) {
+			mmio_write_64(pfc_qspi_reg_tbl[cnt].pfc.reg, pfc_qspi_reg_tbl[cnt].pfc.val);
+		}
+	}
+
+	mmio_write_32(PFC_PWPR, 0x0);
+	mmio_write_32(PFC_PWPR, PWPR_B0Wl);
 }
 
 #ifndef RZA3
 static void pfc_sd_setup(void)
 {
 	int      cnt;
+	int      size = ARRAY_SIZE(pfc_sd_reg_tbl);
 
 	/* Since SDx is 3.3V, the initial value will be set. */
 	mmio_write_32(PFC_SD_ch0, 1);
 	mmio_write_32(PFC_SD_ch1, 0);
 
-	for (cnt = 0; cnt < PFC_SD_TBL_NUM; cnt++) {
+	for (cnt = 0; cnt < size; cnt++) {
 		/* PMC */
 		if (pfc_sd_reg_tbl[cnt].pmc.flg == PFC_ON) {
 			mmio_write_8(pfc_sd_reg_tbl[cnt].pmc.reg, pfc_sd_reg_tbl[cnt].pmc.val);

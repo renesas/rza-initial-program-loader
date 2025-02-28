@@ -207,6 +207,9 @@ static void program_phy1(uint32_t sl_lanes, uint32_t byte_lanes)
 	uint32_t mr1, mr1_wl, mr1_wl_mask;
 	uint32_t mr2, mr2_wl, mr2_wl_mask;
 	uint8_t clk_drive, dq_dqs_drive, dq_dqs_term, vref_value, vref_ca_value;
+#if RZA3M
+	uint8_t adrctrl_drive;
+#endif
 	uint8_t read_lat, trim_lat;
 	uint32_t tmp;
 	int i;
@@ -283,6 +286,9 @@ static void program_phy1(uint32_t sl_lanes, uint32_t byte_lanes)
 	clk_drive = tmp & 0xF;
 	dq_dqs_drive = (tmp >> 4) & 0xF;
 	dq_dqs_term = (tmp >> 8) & 0xF;
+#if RZA3M
+	adrctrl_drive = (tmp >> 12) & 0xF;
+#endif
 	vref_value = (tmp >> 16) & 0xFF;
 	vref_ca_value = (tmp >> 24) & 0xFF;
 	read_lat = (dram == 2 ? 12 : 10) + (CEIL(RL, 2) * 2) - CEIL(WL, 2) + 28;
@@ -310,9 +316,15 @@ static void program_phy1(uint32_t sl_lanes, uint32_t byte_lanes)
 	write_phy_reg(DDRPHY_R26, tmp);
 
 	// Step10
+#if RZA3M
+	write_phy_reg(DDRPHY_R13,
+		clk_drive | (clk_drive << 4) | (adrctrl_drive << 8) | (adrctrl_drive<<12) |
+		(dq_dqs_drive << 16) | (dq_dqs_drive << 20));
+#else
 	write_phy_reg(DDRPHY_R13,
 		clk_drive | (clk_drive << 4) | (clk_drive << 8) | (clk_drive<<12) |
 		(dq_dqs_drive << 16) | (dq_dqs_drive << 20));
+#endif
 
 	// Step11
 	tmp = dq_dqs_term | ((dram == 2) ? 0 : (dq_dqs_term << 4));
@@ -385,7 +397,11 @@ static void program_phy1(uint32_t sl_lanes, uint32_t byte_lanes)
 	for (i = 0; i < byte_lanes; i++) {
 		write_phy_reg(DDRPHY_R29, 6 * i);
 		write_phy_reg(DDRPHY_R30, 9);
+#if RZA3M
+		write_phy_reg(DDRPHY_R32, 14);   //Changed from 10 to 14 according to APP_005
+#else
 		write_phy_reg(DDRPHY_R32, 10);
+#endif
 	}
 
 	// Step32
@@ -393,7 +409,11 @@ static void program_phy1(uint32_t sl_lanes, uint32_t byte_lanes)
 
 	// Step33
 	write_phy_reg(DDRPHY_R29, 0);
+#if RZA3M
+	write_phy_reg(DDRPHY_R57, 29 | 0x00000080);
+#else
 	write_phy_reg(DDRPHY_R57, 26 | 0x00000080);
+#endif
 
 	// Step34
 	write_phy_reg(DDRPHY_R27, 26 | (0x10 << 8) | 0xAC000000);
@@ -537,7 +557,7 @@ static void exec_trainingVREF(uint32_t sl_lanes, uint32_t byte_lanes)
 			}
 		} else {
 			if ((vref_mid_level_code + vref_training_value - sweep_range) > 126) {
-				break; 
+				break;
 			} else {
 				current_vref = vref_mid_level_code + vref_training_value - sweep_range;
 			}
@@ -840,6 +860,9 @@ static void opt_delay(uint32_t sl_lanes, uint32_t byte_lanes)
 {
 	uint32_t tmp;
 	uint16_t dlls_trim_ca;
+#if RZA3M
+    uint16_t dlls_trim_clk;
+#endif
 	uint16_t dlls_trim_2[MAX_BYTE_LANES];
 	uint16_t op_dqs_trim[MAX_BYTE_LANES];
 	uint16_t min_WL;
@@ -856,7 +879,15 @@ static void opt_delay(uint32_t sl_lanes, uint32_t byte_lanes)
 
 	// Step4
 	write_phy_reg(DDRPHY_R29, 0);
+#if RZA3M
+    dlls_trim_clk = read_phy_reg(DDRPHY_R57) & 0x7F;
+    dlls_trim_ca  = read_phy_reg(DDRPHY_R28) & 0x7F;
+    if (dlls_trim_clk <= dlls_trim_ca) {
+        panic();
+    }
+#else
 	dlls_trim_ca = read_phy_reg(DDRPHY_R57) & 0x7F;
+#endif
 	min_WL = dlls_trim_ca;
 
 	for (i = 0; i < byte_lanes; i++) {
@@ -877,9 +908,16 @@ static void opt_delay(uint32_t sl_lanes, uint32_t byte_lanes)
 	}
 
 	// Step5
+#if RZA3M
+	tmp = (dlls_trim_clk - min_WL) & 0x7F;
+#else
 	tmp = (dlls_trim_ca - min_WL) & 0x7F;
+#endif
 	write_phy_reg(DDRPHY_R29, 0);
 	write_phy_reg(DDRPHY_R57, tmp | 0x00000080);
+#if RZA3M
+	tmp = (dlls_trim_ca - min_WL) & 0x7F;
+#endif
 	write_phy_reg(DDRPHY_R28, tmp | 0x00000200);
 	rmw_phy_reg(DDRPHY_R27, 0xFFFFFF80, tmp);
 

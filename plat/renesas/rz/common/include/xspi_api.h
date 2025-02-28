@@ -209,5 +209,5 @@ typedef struct st_xspi_instance
 /* external functions */
 extern void xspi_setup(void);
 
-
+int rz_xspi_read(void* buf, uint64_t from, size_t length);
 #endif	/* _XSPI_API_H_ */

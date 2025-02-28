@@ -50,3 +50,19 @@ void xspi_setup(void)
 		}
 	}
 }
+
+/**
+ * memcpy for xspi
+ */
+int rz_xspi_read(void* to, uint64_t offset, size_t length) {
+    int result;
+    const xspidevice_instance_t *inst = xspidevices[0];
+    if (!inst) return -1;
+
+	result = inst->api->open(inst->ctrl, inst->cfg);
+	if (!result) {
+        inst->api->read(inst->ctrl, to, (size_t)offset, length);
+        inst->api->close(inst->ctrl);
+	}
+    return result;
+}

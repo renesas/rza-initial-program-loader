@@ -9,6 +9,7 @@
 
 #define	PFC_BASE					(0x11030000)			/* PFC base address */
 
+#define PFC_P05							(PFC_BASE + 0x0005)	/* Port register */
 #define PFC_P10							(PFC_BASE + 0x0010)	/* Port register */
 #define PFC_P11							(PFC_BASE + 0x0011)	/* Port register */
 #define PFC_P12							(PFC_BASE + 0x0012)	/* Port register */
@@ -107,6 +108,8 @@
 #define PFC_PM3E						(PFC_BASE + 0x017C)	/* Port mode register */
 #define PFC_PM3F						(PFC_BASE + 0x017E)	/* Port mode register */
 #define PFC_PM40						(PFC_BASE + 0x0180)	/* Port mode register */
+#define PFC_PMC04						(PFC_BASE + 0x0204)	/* Port mode control register */
+#define PFC_PMC05						(PFC_BASE + 0x0205)	/* Port mode control register */
 #define PFC_PMC10						(PFC_BASE + 0x0210)	/* Port mode control register */
 #define PFC_PMC11						(PFC_BASE + 0x0211)	/* Port mode control register */
 #define PFC_PMC12						(PFC_BASE + 0x0212)	/* Port mode control register */
@@ -156,6 +159,8 @@
 #define PFC_PMC3E						(PFC_BASE + 0x023E)	/* Port mode control register */
 #define PFC_PMC3F						(PFC_BASE + 0x023F)	/* Port mode control register */
 #define PFC_PMC40						(PFC_BASE + 0x0240)	/* Port mode control register */
+#define PFC_PFC04						(PFC_BASE + 0x0410)	/* Port function control register */
+#define PFC_PFC05						(PFC_BASE + 0x0414)	/* Port function control register */
 #define PFC_PFC10						(PFC_BASE + 0x0440)	/* Port function control register */
 #define PFC_PFC11						(PFC_BASE + 0x0444)	/* Port function control register */
 #define PFC_PFC12						(PFC_BASE + 0x0448)	/* Port function control register */
@@ -207,6 +212,8 @@
 #define PFC_PFC40						(PFC_BASE + 0x0500)	/* Port function control register */
 #define PFC_IOLH02						(PFC_BASE + 0x1010)	/* IOLH switch register */
 #define PFC_IOLH03						(PFC_BASE + 0x1018)	/* IOLH switch register */
+#define PFC_IOLH04						(PFC_BASE + 0x1020)	/* IOLH switch register */
+#define PFC_IOLH05						(PFC_BASE + 0x1028)	/* IOLH switch register */
 #define PFC_IOLH06						(PFC_BASE + 0x1030)	/* IOLH switch register */
 #define PFC_IOLH07						(PFC_BASE + 0x1038)	/* IOLH switch register */
 #define PFC_IOLH08						(PFC_BASE + 0x1040)	/* IOLH switch register */
@@ -246,6 +253,8 @@
 #define PFC_IOLH3E						(PFC_BASE + 0x11F0)	/* IOLH switch register */
 #define PFC_IOLH3F						(PFC_BASE + 0x11F8)	/* IOLH switch register */
 #define PFC_IOLH40						(PFC_BASE + 0x1200)	/* IOLH switch register */
+#define PFC_SR04						(PFC_BASE + 0x1420)	/* Slew-Rate switch register */
+#define PFC_SR05						(PFC_BASE + 0x1428)	/* Slew-Rate switch register */
 #define PFC_SR06						(PFC_BASE + 0x1430)	/* Slew-Rate switch register */
 #define PFC_SR07						(PFC_BASE + 0x1438)	/* Slew-Rate switch register */
 #define PFC_SR08						(PFC_BASE + 0x1440)	/* Slew-Rate switch register */
@@ -256,6 +265,7 @@
 #define PFC_SR10						(PFC_BASE + 0x1480)	/* Slew-Rate switch register */
 #define PFC_SR15						(PFC_BASE + 0x14A8)	/* Slew-Rate switch register */
 #define PFC_SR16						(PFC_BASE + 0x14B0)	/* Slew-Rate switch register */
+#define PFC_SR1A						(PFC_BASE + 0x14D0)	/* Slew-Rate switch register */
 #define PFC_SR1B						(PFC_BASE + 0x14D8)	/* Slew-Rate switch register */
 #define PFC_SR1C						(PFC_BASE + 0x14E0)	/* Slew-Rate switch register */
 #define PFC_SR1D						(PFC_BASE + 0x14E8)	/* Slew-Rate switch register */
@@ -271,6 +281,8 @@
 #define PFC_IEN07						(PFC_BASE + 0x1838)	/* IEN switch register */
 #define PFC_IEN08						(PFC_BASE + 0x1840)	/* IEN switch register */
 #define PFC_IEN09						(PFC_BASE + 0x1848)	/* IEN switch register */
+#define PFC_PUPD04						(PFC_BASE + 0x1C20)	/* PU/PD switch register */
+#define PFC_PUPD05						(PFC_BASE + 0x1C28)	/* PU/PD switch register */
 #define PFC_PUPD06						(PFC_BASE + 0x1C30)	/* PU/PD switch register */
 #define PFC_PUPD07						(PFC_BASE + 0x1C38)	/* PU/PD switch register */
 #define PFC_PUPD08						(PFC_BASE + 0x1C40)	/* PU/PD switch register */
@@ -281,6 +293,7 @@
 #define PFC_PUPD10						(PFC_BASE + 0x1C80)	/* PU/PD switch register */
 #define PFC_PUPD15						(PFC_BASE + 0x1CA8)	/* PU/PD switch register */
 #define PFC_PUPD16						(PFC_BASE + 0x1CB0)	/* PU/PD switch register */
+#define PFC_PUPD1A						(PFC_BASE + 0x1CD0)	/* PU/PD switch register */
 #define PFC_PUPD1B						(PFC_BASE + 0x1CD8)	/* PU/PD switch register */
 #define PFC_PUPD1C						(PFC_BASE + 0x1CE0)	/* PU/PD switch register */
 #define PFC_PUPD1D						(PFC_BASE + 0x1CE8)	/* PU/PD switch register */

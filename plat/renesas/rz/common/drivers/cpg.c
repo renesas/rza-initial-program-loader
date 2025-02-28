@@ -183,7 +183,11 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 	{		/* SDHI */
 		(uintptr_t)CPG_CLKON_SDHI,
 		(uintptr_t)CPG_CLKMON_SDHI,
+#if RZA3M
+		0x000f000f,
+#else
 		0x00ff00ff,
+#endif
 		CPG_T_CLK
 	},
 #if !(RZG2UL||RZA3)
@@ -797,10 +801,12 @@ static void cpg_pll_setup(void)
 		val = mmio_read_32(CPG_PLL4_MON);
 	} while ((val & (PLL4_MON_PLL4_RESETB | PLL4_MON_PLL4_LOCK)) == 0);
 #endif
+#if !(RZA3M)
 	/* PLL6 normal mode transition confirmation */
 	do {
 		val = mmio_read_32(CPG_PLL6_MON);
 	} while ((val & (PLL6_MON_PLL6_RESETB | PLL6_MON_PLL6_LOCK)) == 0);
+#endif
 }
 
 static void cpg_div_sel_setup(CPG_REG_SETTING *tbl, uint32_t size)
@@ -840,6 +846,12 @@ static void cpg_reset_setup(void)
 
 void cpg_active_ddr(void (*disable_phy)(void))
 {
+#if RZA3M
+	/* Assert AXI_PERIDDR.RESTn */  //Added according to APP006
+	mmio_write_32(CPG_RST_PERI_DDR, 0x00010000);
+	while ((mmio_read_32(CPG_RSTMON_PERI_DDR) & 0x00000001) != 0x00000001)
+		;
+#endif
 	/* Assert the reset of DDRTOP */
 	mmio_write_32(CPG_RST_DDR, 0x005F0000 | (CPG_RST_DDR_OPT_VALUE << 16));
 	mmio_write_32(CPG_OTHERFUNC2_REG, 0x00010000);
@@ -853,6 +865,12 @@ void cpg_active_ddr(void (*disable_phy)(void))
 
 	udelay(1);
 
+#if RZA3M
+    /*AXI_PERIDDR.RESTn */  //Added according to APP006
+    mmio_write_32(CPG_RST_PERI_DDR, 0x00010001);
+    while ((mmio_read_32(CPG_RSTMON_PERI_DDR) & 0x00000001) != 0x00000000)
+		;
+#endif
 	/* De-assert rst_n */
 	mmio_write_32(CPG_OTHERFUNC2_REG, 0x00010001);
 
@@ -877,6 +895,12 @@ void cpg_active_ddr(void (*disable_phy)(void))
 
 void cpg_reset_ddr_mc(void)
 {
+#if RZA3M
+	/* Assert AXI_PERIDDR.RESTn */  //Added according to APP006
+	mmio_write_32(CPG_RST_PERI_DDR, 0x00010000);
+	while ((mmio_read_32(CPG_RSTMON_PERI_DDR) & 0x00000001) != 0x00000001)
+		;
+#endif
 	/* Assert rst_n, axiY_ARESETn, regARESETn */
 	mmio_write_32(CPG_RST_DDR, 0x005C0000 | (CPG_RST_DDR_OPT_VALUE << 16));
 	mmio_write_32(CPG_OTHERFUNC2_REG, 0x00010000);
@@ -885,6 +909,12 @@ void cpg_reset_ddr_mc(void)
 
 	udelay(1);
 
+#if RZA3M
+	/*AXI_PERIDDR.RESTn */  //Added according to APP006
+	mmio_write_32(CPG_RST_PERI_DDR, 0x00010001);
+	while ((mmio_read_32(CPG_RSTMON_PERI_DDR) & 0x00000001) != 0x00000000)
+		;
+#endif
 	/* De-assert rst_n */
 	mmio_write_32(CPG_OTHERFUNC2_REG, 0x00010001);
 

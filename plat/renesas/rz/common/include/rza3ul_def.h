@@ -9,7 +9,8 @@
 
 #define RZA3_INTERNAL_MEMORY_BASE   (0x00000000)
 #define RZA3_DEVICE_BASE            (0x10000000)
-#define RZA3_XSPI_MEMORY_BASE       (0x20000000)
+/* move to platform.mk */
+/*#define RZA3_XSPI_MEMORY_BASE       (0x20000000) */
 #define RZA3_DDR_MEMORY_BASE0       (0x40000000)
 #define RZA3_DDR_MEMORY_BASE1       (0x50000000)
 #define RZA3_DDR_MEMORY_BASE2       (0x60000000)

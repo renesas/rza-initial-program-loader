@@ -117,7 +117,7 @@ void bl2_el3_early_platform_setup(u_register_t arg1, u_register_t arg2,
 
 	console_set_scope(&rzg2l_bl31_console,
 			CONSOLE_FLAG_BOOT | CONSOLE_FLAG_CRASH);
-			
+
 	RZA_PRINTF("Initial Program Loader %s\n", RZA_IPL_VERSION_STRING);
 	RZA_PRINTF("%s\n", build_message);
 }
@@ -155,7 +155,7 @@ void bl2_el3_plat_arch_setup(void)
 		panic();
 	}
 	plat_mmu_enable();
-    
+
 #else
 	setup_page_tables(bl2_regions, rzg2l_mmap);
 	enable_mmu_el3(0);
@@ -173,7 +173,9 @@ void bl2_platform_setup(void)
 #endif /* DEBUG_FPGA */
 
 	rz_io_setup();
-    
+
+	RZ_RUN_TESTS();
+
 #if (APPLOAD == RZ_NOFIP)
 	rza_load_fsp();
 #endif

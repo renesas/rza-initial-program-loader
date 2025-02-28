@@ -16,5 +16,7 @@
 #define BOOT_MODE_SPI_1_8       (3)
 #define BOOT_MODE_SPI_3_3       (4)
 #define BOOT_MODE_SCIF          (5)
+#define BOOT_MODE_NAND_SPI_1_8  (6)
+#define BOOT_MODE_NAND_SPI_3_3  (7)
 
 #endif	/* __SYS_H__ */
