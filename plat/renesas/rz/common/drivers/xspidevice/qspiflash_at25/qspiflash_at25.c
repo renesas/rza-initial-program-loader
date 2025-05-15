@@ -389,7 +389,7 @@ static int flash_get_info(xspidevice_ctrl_t * ctrl, xspidevice_info_t * info)
 	info->capacity = 0;
 	info->minimum_erase_size = 0;
 
-	strlcpy(info->device_vendor, "Dialog", sizeof(info->device_vendor));
+	strlcpy(info->device_vendor, "Renesas", sizeof(info->device_vendor));
 	strlcpy(info->device_product, "AT25x", sizeof(info->device_product));
 	return 0;
 }

@@ -23,7 +23,7 @@ static const e_burst_read_wrap_depth_t DEFAULT_BURST_READ_WRAP_DEPTH = BURST_REA
 static const e_output_driver_strength_t DEFAULT_OUTPUT_DRIVER_STRENGTH = OUTPUT_DRIVER_STRENGTH_30_OHMS;
 
 static const uint32_t SPI_POST_RESET_WAIT = 50; /* usec */
-static const uint32_t FLASH_RESET_RECOVERY_WAIT = 100; /* msec */
+static const uint32_t FLASH_RESET_RECOVERY_WAIT = 40; /* usec */
 static const uint32_t MAX_FLASH_UNLOCK_RETRIES = 3;
 
 static const uintptr_t WP_IO2_PIN_PORT_ADDR = PFC_P05;
@@ -389,7 +389,7 @@ static int flash_reset(qspiflash_mx25l25645g_ctrl_t * myctrl)
 	result = xspi->api->exec_op(xspi->ctrl, &op_reset, false);
 	if (result < 0) return result;
 
-	mdelay(FLASH_RESET_RECOVERY_WAIT);
+	udelay(FLASH_RESET_RECOVERY_WAIT);
 
 	return result;
 }

@@ -323,7 +323,7 @@ static const uint32_t spim_cmncr_set(uint8_t mask, uint8_t value, int pos)
 			break;
 	}
 
-	if (mask & 1 << pos) {
+	if (mask & (1 << pos)) {
 		moiio = value & 1 << pos ? SPIM_CMNCR_IO_HIGH : SPIM_CMNCR_IO_LOW;
 		ionfv = SPIM_CMNCR_IO_KEEP;
 	}
@@ -332,11 +332,8 @@ static const uint32_t spim_cmncr_set(uint8_t mask, uint8_t value, int pos)
 		ionfv = SPIM_CMNCR_IO_HIZ;
 	}
 
-
-	if (mask & 1 << pos) {
-		if (moiionpos >= 0) cmncr_set |= moiio << moiionpos;
-		if (ionfvpos >= 0) cmncr_set |= ionfv << ionfvpos;
-	}
+	if (moiionpos >= 0) cmncr_set |= moiio << moiionpos;
+	if (ionfvpos >= 0) cmncr_set |= ionfv << ionfvpos;
 
 	return cmncr_set;
 }
@@ -344,10 +341,8 @@ static const uint32_t spim_cmncr_set(uint8_t mask, uint8_t value, int pos)
 static void spim_set_idlelevel(spim_ctrl_t * const myctrl, const xspi_op_t * const op)
 {
 	static const uint32_t cmncr_mask =
-		SPIM_CMNCR_IO0FV |
 		SPIM_CMNCR_IO2FV |
 		SPIM_CMNCR_IO3FV |
-		SPIM_CMNCR_MOIIO0 |
 		SPIM_CMNCR_MOIIO1 |
 		SPIM_CMNCR_MOIIO2 |
 		SPIM_CMNCR_MOIIO3;

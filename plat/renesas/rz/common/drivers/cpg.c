@@ -184,9 +184,9 @@ static CPG_SETUP_DATA cpg_clk_on_tbl[] = {
 		(uintptr_t)CPG_CLKON_SDHI,
 		(uintptr_t)CPG_CLKMON_SDHI,
 #if RZA3M
-		0x000f000f,
+		0x000f0000,
 #else
-		0x00ff00ff,
+		0x00ff0000,
 #endif
 		CPG_T_CLK
 	},
@@ -391,7 +391,11 @@ static CPG_SETUP_DATA cpg_reset_tbl[] = {
 	{		/* SDHI */
 		(uintptr_t)CPG_RST_SDHI,
 		(uintptr_t)CPG_RSTMON_SDHI,
-		0x00030003,
+#if RZA3M
+		0x00010000,
+#else
+		0x00030000,
+#endif
 		CPG_T_RST
 	},
 #if !(RZG2UL||RZA3)
@@ -523,8 +527,13 @@ static CPG_REG_SETTING cpg_static_select_tbl[] = {
 
 static CPG_REG_SETTING cpg_dynamic_select_tbl[] = {
 	{ (uintptr_t)CPG_PL4_DSEL, 0x00010001 },
+#if RZA3M
+	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00010003 },
+	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00010002 },
+#else
 	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00110033 },
 	{ (uintptr_t)CPG_PL2SDHI_DSEL, 0x00110022 },
+#endif
 };
 
 #define CPG_SEL_PLL1_ON_OFF					(0)
@@ -548,11 +557,19 @@ static CPG_REG_SETTING cpg_sel_pll1_on_off[] = {
 static CPG_REG_SETTING cpg_sel_pll2_1_on_off[] = {
 	{(uintptr_t)CPG_CLKON_ADC, 0x00010001 },
 	{(uintptr_t)CPG_CLKON_TSU, 0x00010001 },
-	{(uintptr_t)CPG_CLKON_SDHI, 0x00770077 }
+#if RZA3M
+	{(uintptr_t)CPG_CLKON_SDHI, 0x000f0000 },
+#else
+	{(uintptr_t)CPG_CLKON_SDHI, 0x00ff0000 },
+#endif
 };
 
 static CPG_REG_SETTING cpg_sel_pll2_2_on_off[] = {
-	{(uintptr_t)CPG_CLKON_SDHI, 0x00770077 },
+#if RZA3M
+	{(uintptr_t)CPG_CLKON_SDHI, 0x000f0000 },
+#else
+	{(uintptr_t)CPG_CLKON_SDHI, 0x00ff0000 },
+#endif
 #if !(RZG2UL||RZA3)
 	{(uintptr_t)CPG_CLKON_MIPI_DSI, 0x00200020 },
 #endif
@@ -593,7 +610,11 @@ static CPG_REG_SETTING cpg_sel_pll3_1_on_off[] = {
 	{(uintptr_t)CPG_CLKON_REG0_BUS, 0x00010001 },
 	{(uintptr_t)CPG_CLKON_REG1_BUS, 0x00030003 },
 	{(uintptr_t)CPG_CLKON_ROM, 0x00010001 },
-	{(uintptr_t)CPG_CLKON_SDHI, 0x00880088 },
+#if RZA3M
+	{(uintptr_t)CPG_CLKON_SDHI, 0x000f0000 },
+#else
+	{(uintptr_t)CPG_CLKON_SDHI, 0x00ff0000 },
+#endif
 	{(uintptr_t)CPG_CLKON_SRAM_ACPU, 0x00010001 },
 	{(uintptr_t)CPG_CLKON_SRAM_MCPU, 0x00010001 },
 	{(uintptr_t)CPG_CLKON_SYSC, 0x00020002 },

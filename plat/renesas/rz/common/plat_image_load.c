@@ -144,7 +144,7 @@ void rza_print_descs(void)
 
 	/* In the case of release build, bl2_params isn't used */
 	RZ_UNUSED_PARAM(bl2_params);
-	RZA_PRINTF_VERBOSE("Adress to copy the application: 0x%08llx\n", (uint64_t)bl2_params->head->image_info->image_base);
+	RZA_PRINTF_VERBOSE("Address to copy the application: 0x%08llx\n", (uint64_t)bl2_params->head->image_info->image_base);
 	RZA_PRINTF_VERBOSE("Entry Point Address: 0x%08llx\n", (uint64_t)bl2_params->head->ep_info->pc);
 	RZA_PRINTF_VERBOSE("Copy Data Size: %dbyte\n", bl2_params->head->image_info->image_max_size);
 	RZA_PRINTF_VERBOSE("SPSR_EL3 settings:\n");

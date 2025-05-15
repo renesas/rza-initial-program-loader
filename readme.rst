@@ -9,11 +9,12 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 
 Current Release
 ---------------------------
-IPL v2.0.0
+IPL v2.1.0
 
 Supported MPUs
 ----------------------------
 * RZ/A3UL
+* RZ/A3M
 
 Supported RZ/A MPU Kits
 ----------------------------
@@ -31,10 +32,16 @@ Supported RZ/A MPU Kits
   * RTK9763U02S01001BE (J-Link lite not included)
   * RTK9763U02S01003BE (J-Link Lite included)
 
+* EK-RZA3M Kit
+
+  Model number:
+
+  * RTK9EKZA3MS10001BE
+
 Development Environment
 ----------------------------
 e² studio is used for build and program execution environment.
-Please refer to the `application note`_ for the procedure for building the environment and how to use it.
+Please refer to the `application note <./application_note/_index.md>`_ for the procedure for building the environment and how to use it.
 
 Related Links
 ----------------------------
@@ -43,4 +50,4 @@ Related Links
 * e² studio: `www.renesas.com/e2studio <https://www.renesas.com/e2studio>`_
 * Support: `www.renesas.com/support <https://www.renesas.com/support>`_
 
-.. _application note: https://github.com/renesas/rza-initial-program-loader/tree/main/application_note
+

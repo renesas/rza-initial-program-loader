@@ -346,6 +346,8 @@ static int octa_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg)
 		initialised[myctrl->channel] = true;
 	}
 
+	myctrl->opened = true;
+
 	return result;
 }
 
