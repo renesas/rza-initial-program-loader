@@ -9,7 +9,9 @@
 
 #define	PFC_BASE					(0x11030000)			/* PFC base address */
 
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 #define PFC_P05							(PFC_BASE + 0x0005)	/* Port register */
+#endif /* (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1) */
 #define PFC_P10							(PFC_BASE + 0x0010)	/* Port register */
 #define PFC_P11							(PFC_BASE + 0x0011)	/* Port register */
 #define PFC_P12							(PFC_BASE + 0x0012)	/* Port register */

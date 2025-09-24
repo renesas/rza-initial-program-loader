@@ -125,7 +125,7 @@ void bl2_el3_early_platform_setup(u_register_t arg1, u_register_t arg2,
 void bl2_el3_plat_arch_setup(void)
 {
 #if RZA3
-	rza_mmu_pgtbl_cfg_t g_mmu_pagetable_array[] = {
+	struct	rza_mmu_pgtbl_cfg_t g_mmu_pagetable_array[] = {
 		/* vaddress, paddress,   size,       attribute */
 		{0x00000000, 0x00000000, 0x00200000, RZA_MMU_ATTRIBUTE_NORMAL_CACHEABLE},
 		{0x00200000, 0x00200000, 0x0FE00000, RZA_MMU_ATTRIBUTE_ACCESS_FAULT    },

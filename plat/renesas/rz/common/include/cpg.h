@@ -9,15 +9,15 @@
 #include "cpg_regs.h"
 #include <lib/mmio.h>
 
-typedef enum {
+enum xspi_clock {
 	XSPI_CLOCK_SPIM,
 	XSPI_CLOCK_OCTA,
-} xspi_clock;
+};
 
-typedef enum clock_id_t {
+enum clock_id_t {
 	CPG_CLOCK_SPIM = 20,
 	CPG_CLOCK_OCTA = 61,
-} clock_id;
+};
 
 static inline void cpg_clock_onoff(int clkid, uint32_t mask, uint32_t val) {
 	val = mask * (val & 1);
@@ -78,7 +78,9 @@ void cpg_early_setup(void);
 void cpg_setup(void);
 void cpg_active_ddr(void (*disable_phy)(void));
 void cpg_reset_ddr_mc(void);
-int cpg_set_xspi_clock(xspi_clock spi, int frequency_hz);
-int cpg_get_xspi_clock(xspi_clock spi);
+int cpg_set_xspi_clock(enum xspi_clock spi, int frequency_hz);
+int cpg_get_xspi_clock(enum xspi_clock spi);
+void cpg_start_dmac(uint32_t unit);
+void cpg_stop_dmac(uint32_t unit);
 
 #endif /* __CPG_H__ */

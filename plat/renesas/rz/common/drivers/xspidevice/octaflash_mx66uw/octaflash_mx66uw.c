@@ -26,6 +26,7 @@ static int flash_read(xspidevice_ctrl_t * ctrl, void * buffer, size_t address, s
 static int flash_write(xspidevice_ctrl_t * ctrl, void const * buffer, size_t address, size_t length);
 static int flash_erase(xspidevice_ctrl_t * ctrl, size_t address, size_t length);
 static enum xspidevice_write_status flash_get_write_status(xspidevice_ctrl_t * ctrl);
+static int flash_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress);
 
 /* API function table definition */
 const xspidevice_api_t octaflash_mx66uw_api = {
@@ -39,6 +40,7 @@ const xspidevice_api_t octaflash_mx66uw_api = {
 	.write = flash_write,
 	.erase = flash_erase,
 	.get_write_status = flash_get_write_status,
+	.get_logical_address = flash_get_logical_address,
 };
 
 /* Access timing parameters : 100MHz
@@ -512,4 +514,10 @@ static enum xspidevice_write_status flash_get_write_status(xspidevice_ctrl_t * c
 	if (result < 0) return WRITE_STATUS_FAIL;
 	if (result & 1) return WRITE_STATUS_IN_PROGRESS;
 	return WRITE_STATUS_OK;
+}
+
+static int flash_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress)
+{
+
+	return -1;
 }

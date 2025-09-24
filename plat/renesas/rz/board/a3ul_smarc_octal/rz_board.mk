@@ -10,7 +10,7 @@ XSPI2_DEVICE?=octaram_apsxx
 XSPI2_IF_OPTION?=.device_size=64*1024*1024
 XSPI_DEVICE_TYPE:=OCTA
 
-NAND:=0
+FLASH_MEMORY_TYPE:=NOR_FLASH
 RZ_FLASH_SIZE ?= 134217728 # 128MB
 $(eval $(call add_define,RZ_FLASH_SIZE))
 
@@ -22,3 +22,4 @@ DDR_PLL4	:= 1600
 $(eval $(call add_define,DDR_PLL4))
 endif
 $(eval $(call add_define_val,XSPI_DEVICE_TYPE,\"${XSPI_DEVICE_TYPE}\"))
+$(eval $(call add_define,FLASH_MEMORY_TYPE))

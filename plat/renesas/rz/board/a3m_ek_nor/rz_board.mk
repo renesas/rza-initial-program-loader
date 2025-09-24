@@ -5,10 +5,12 @@
 #
 
 XSPI0_DEVICE?=qspiflash_mx25l25645g
-XSPI_DEVICE_TYPE:=QSPI
+XSPI_DEVICE_TYPE:=QSPI-NOR
 
-NAND:=0
+FLASH_MEMORY_TYPE:=NOR_FLASH
+
 RZ_FLASH_SIZE ?= 33554432 # 32MB
+DEFAULT_SPIM_DRCR_RBURST:=7
 $(eval $(call add_define,RZ_FLASH_SIZE))
 
 ifneq (${USE_SDRAM},0)
@@ -25,3 +27,5 @@ endif
 $(eval $(call add_define,DDR_PLL4))
 endif
 $(eval $(call add_define_val,XSPI_DEVICE_TYPE,\"${XSPI_DEVICE_TYPE}\"))
+$(eval $(call add_define,FLASH_MEMORY_TYPE))
+$(eval $(call add_define,DEFAULT_SPIM_DRCR_RBURST))

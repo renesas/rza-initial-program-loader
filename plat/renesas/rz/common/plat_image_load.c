@@ -30,6 +30,8 @@ typedef struct fsp_app_header {
 } fsp_app_header_t;
 #endif /* (APPLOAD == RZ_NOFIP) */
 
+void rz_ipl_end_loop(void);
+
 bl_load_info_t *plat_get_bl_image_load_info(void)
 {
 	return get_bl_load_info_from_mem_params_desc();
@@ -43,6 +45,13 @@ bl_params_t *plat_get_next_bl_params(void)
 
 void plat_flush_next_bl_params(void)
 {
+}
+
+void rz_ipl_end_loop(void)
+{
+	RZA_PRINTF("Please download application by debugger\n");
+	
+	while(1);
 }
 
 #if (APPLOAD == RZ_NOFIP)
@@ -100,11 +109,17 @@ void rz_update_descs(fsp_app_header_t *header)
 	bl_params_t *bl2_params;
 
 	bl2_params = plat_get_next_bl_params();
-
+#if (0 ==  ONLY_INIT_DEVICE)
 	bl2_params->head->image_info->image_base = (uintptr_t)header->dest_addr;
 	bl2_params->head->image_info->image_max_size = header->payload_size;
 	bl2_params->head->image_info->h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
 	bl2_params->head->ep_info->pc = (uintptr_t)header->entry_addr;
+#else
+	bl2_params->head->image_info->image_base = 0;
+	bl2_params->head->image_info->image_max_size = 0;
+	bl2_params->head->image_info->h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
+	bl2_params->head->ep_info->pc = (uintptr_t)rz_ipl_end_loop;
+#endif /* (0 ==  ONLY_INIT_DEVICE) */
 	flush_bl_params_desc();
 
 	return;
@@ -117,20 +132,33 @@ void rza_load_fsp(void)
 	fsp_app_header_t *header;
 
     header = &header_impl;
-
-	rz_xspi_read(header, FSP_FROM_XSPI_BASE, sizeof(*header));
+    
+#if (0 ==  ONLY_INIT_DEVICE)
+	ret = rz_xspi_read(header, FSP_FROM_XSPI_BASE, sizeof(*header));
+	if (0 != ret) {
+		ERROR("Failed to read data from Flash memory\n");
+		panic();
+	}
 
 	ret = rz_check_fsp_header(header);
 
 	if (0 == ret) {
 		if ((FSP_BASE + RZ_APP_PAYLOAD_OFFSET) != header->dest_addr) {
-			rz_xspi_read((void*)header->dest_addr, RZ_APP_PAYLOAD_OFFSET + FSP_FROM_XSPI_BASE, (size_t)header->payload_size);
+			ret = rz_xspi_read((void*)header->dest_addr, RZ_APP_PAYLOAD_OFFSET + FSP_FROM_XSPI_BASE, (size_t)header->payload_size);
+			if (0 != ret) {
+				ERROR("Failed to read data from Flash memory\n");
+				panic();
+			}
 			flush_dcache_range((uintptr_t)(header->dest_addr), header->payload_size);
 		}
 		rz_update_descs(header);
 	} else {
 		panic();
 	}
+#else
+	RZ_UNUSED_PARAM(ret);
+	rz_update_descs(header);
+#endif /* (0 ==  ONLY_INIT_DEVICE) */
 
 	return;
 }
@@ -144,10 +172,14 @@ void rza_print_descs(void)
 
 	/* In the case of release build, bl2_params isn't used */
 	RZ_UNUSED_PARAM(bl2_params);
+	
+#if (0 ==  ONLY_INIT_DEVICE)
 	RZA_PRINTF_VERBOSE("Address to copy the application: 0x%08llx\n", (uint64_t)bl2_params->head->image_info->image_base);
 	RZA_PRINTF_VERBOSE("Entry Point Address: 0x%08llx\n", (uint64_t)bl2_params->head->ep_info->pc);
 	RZA_PRINTF_VERBOSE("Copy Data Size: %dbyte\n", bl2_params->head->image_info->image_max_size);
+#endif /* (0 ==  ONLY_INIT_DEVICE) */
 	RZA_PRINTF_VERBOSE("SPSR_EL3 settings:\n");
+
 	if (MODE_RW_64 == GET_RW(bl2_params->head->ep_info->spsr)) {
 		RZA_PRINTF_VERBOSE("AArch64 execution state\n");
 	} else {
@@ -177,8 +209,8 @@ void rza_print_descs(void)
 	} else {
 		RZA_PRINTF_VERBOSE("h\n");
 	}
-
+#if (0 ==  ONLY_INIT_DEVICE)
 	RZA_PRINTF("Jump to Application\n");
-
+#endif /* (0 ==  ONLY_INIT_DEVICE) */
 	return;
 }

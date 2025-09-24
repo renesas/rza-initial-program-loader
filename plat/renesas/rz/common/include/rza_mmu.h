@@ -110,16 +110,16 @@
 #define RZA_MMU_ATTRIBUTE_CONFIG_END		(0xFFFFFFFF)
 
 /* xSPI device extended configuration structure */
-typedef struct mmu_pagetable_config
+struct rza_mmu_pgtbl_cfg_t
 {
 	uint64_t vaddress;
 	uint64_t paddress;
 	uint64_t size;
 	uint64_t attribute;
-} rza_mmu_pgtbl_cfg_t;
+};
 
 /* external functions */
-int  plat_mmu_init(const rza_mmu_pgtbl_cfg_t *config_table);
+int  plat_mmu_init(const struct rza_mmu_pgtbl_cfg_t *config_table);
 void plat_mmu_enable(void);
 
 #endif  /* _RZA_MMU_H_ */

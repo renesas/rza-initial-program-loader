@@ -115,6 +115,14 @@ typedef struct st_xspidevice_api
 	 * @param[in, out] ctrl Opened control block.
 	 */
 	enum xspidevice_write_status (* get_write_status)(xspidevice_ctrl_t * ctrl);
+	
+	/** Get logical block number (for Serial NAND flash only)
+	 *
+	 * @param[in, out] ctrl Opened control block.
+	 * @param[in]      paddress Address to physical block
+	 * @param[out      laddress Address to logical block
+	 */
+	int (* get_logical_address)(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress);
 
 } xspidevice_api_t;
 

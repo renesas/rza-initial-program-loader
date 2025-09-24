@@ -9,8 +9,10 @@
 #include <assert.h>
 #include <drivers/delay_timer.h>
 #include "errno.h"
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 #include "pfc_regs.h"
 #include "lib/mmio.h"
+#endif /* (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1) */
 #include "qspiflash_mx25l25645g_api.h"
 
 /* Defaults */
@@ -24,11 +26,14 @@ static const e_output_driver_strength_t DEFAULT_OUTPUT_DRIVER_STRENGTH = OUTPUT_
 
 static const uint32_t SPI_POST_RESET_WAIT = 50; /* usec */
 static const uint32_t FLASH_RESET_RECOVERY_WAIT = 40; /* usec */
+
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 static const uint32_t MAX_FLASH_UNLOCK_RETRIES = 3;
 
 static const uintptr_t WP_IO2_PIN_PORT_ADDR = PFC_P05;
 static const uintptr_t WP_IO2_PIN_PORT_MODE_ADDR = PFC_PMC05;
 static const uint32_t WP_IO2_PIN_BIT = BIT(3);
+#endif
 
 /* Static function pre-definition */
 static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg);
@@ -41,6 +46,7 @@ static int flash_read(xspidevice_ctrl_t * ctrl, void * buffer, size_t address, s
 static int flash_write(xspidevice_ctrl_t * ctrl, void const * buffer, size_t address, size_t length);
 static int flash_erase(xspidevice_ctrl_t * ctrl, size_t address, size_t length);
 static enum xspidevice_write_status flash_get_write_status(xspidevice_ctrl_t * ctrl);
+static int flash_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress);
 
 /* API function table definition */
 const xspidevice_api_t qspiflash_mx25l25645g_api = {
@@ -54,6 +60,7 @@ const xspidevice_api_t qspiflash_mx25l25645g_api = {
 	.write = flash_write,
 	.erase = flash_erase,
 	.get_write_status = flash_get_write_status,
+	.get_logical_address = flash_get_logical_address,
 };
 
 /* Static variables */
@@ -394,6 +401,7 @@ static int flash_reset(qspiflash_mx25l25645g_ctrl_t * myctrl)
 	return result;
 }
 
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 static int flash_prepare_unlock(qspiflash_mx25l25645g_ctrl_t * myctrl)
 {
 	/* Set WP#SIO2 as GPIO */
@@ -463,6 +471,7 @@ err:
 	ERROR("Failed to unlock the flash\n");
 	panic();
 }
+#endif /* (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1) */
 
 static int flash_init(qspiflash_mx25l25645g_ctrl_t * myctrl)
 {
@@ -531,10 +540,12 @@ static int flash_init(qspiflash_mx25l25645g_ctrl_t * myctrl)
 	/* Verify if the status register is written correctly */
 	uint8_t status = flash_read_status_register(myctrl);
 	if (status != status_register) {
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 		if ((status & 0x80) != 0) {
 			WARN("Flash is in Hardware Protection Mode\n");
 			return -EAGAIN;
 		}
+#endif
 		ERROR("Failed to write status register\n");
 		return -1;
 	}
@@ -567,6 +578,7 @@ static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg)
 	if (result == 0) {
 		udelay(SPI_POST_RESET_WAIT);
 
+#if (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1)
 		uint32_t retries = 0;
 		do {
 			retries++;
@@ -575,6 +587,9 @@ static int flash_open(xspidevice_ctrl_t * ctrl, xspidevice_cfg_t const * cfg)
 			result = flash_init(myctrl);
 			if (result == -EAGAIN) flash_hw_protect_unlock(myctrl);
 		} while (result == -EAGAIN);
+#else /* (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1) */
+		result = flash_init(myctrl);
+#endif /* (RZA_UNLOCK_FLASH_WRITE_PROTECT == 1) */
 
 		if (result == 0) {
 			myctrl->opened = true;
@@ -709,4 +724,10 @@ static enum xspidevice_write_status flash_get_write_status(xspidevice_ctrl_t * c
 	if ((result & BIT(1)) == 0) return WRITE_STATUS_DISABLED;
 
 	return WRITE_STATUS_OK;
+}
+
+static int flash_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress)
+{
+
+	return -1;
 }

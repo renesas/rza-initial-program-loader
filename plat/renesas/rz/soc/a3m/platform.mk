@@ -6,6 +6,7 @@
 
 APPLOAD?=RZ_NOFIP
 $(eval $(call add_define,APPLOAD))
+
 include plat/renesas/rz/common/rz_common.mk
 include plat/renesas/rz/board/${BOARD}/rz_board.mk
 include plat/renesas/rz/soc/${PLAT}/rz_xspi.mk
@@ -13,6 +14,16 @@ include plat/renesas/rz/soc/${PLAT}/rz_xspi.mk
 PLAT_INCLUDES	+=	-Iplat/renesas/rz/soc/a3m/include
 
 DDR_SOURCES += plat/renesas/rz/soc/a3m/drivers/ddr/ddr_a3m.c
+
+DMAC_SOURCES += plat/renesas/rz/soc/a3m/drivers/dmac/dmac.c
+SUPPORT_DMAC:=1
+$(eval $(call add_define,SUPPORT_DMAC))
+
+RZA_UNLOCK_FLASH_WRITE_PROTECT:=0
+$(eval $(call add_define,RZA_UNLOCK_FLASH_WRITE_PROTECT))
+
+RZA_NAND_READ_UNIT_128BLOCK:=1
+$(eval $(call add_define,RZA_NAND_READ_UNIT_128BLOCK))
 
 RZA3 := 1
 RZA3M := 1
@@ -48,7 +59,7 @@ $(RZ_ELF): $(BL2_ELF)
 
 $(RZ_BIN): $(BL2_BIN)
 	@echo "  IMG     $@"
-ifeq ($(NAND),1)
+ifeq ($(FLASH_MEMORY_TYPE),NAND_FLASH)
 	$(Q)/usr/bin/perl ./plat/renesas/rz/soc/a3m/rz_image_nand.pl "$<" "$@"
 else
 	$(Q)/usr/bin/perl ./plat/renesas/rz/soc/a3m/rz_image.pl "$<" "$@"

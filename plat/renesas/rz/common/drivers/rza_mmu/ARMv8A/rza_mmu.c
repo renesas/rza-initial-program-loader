@@ -13,8 +13,8 @@
 #include <arch_helpers.h>
 #include <rza_mmu.h>
 
-static int rz_mmu_check_tbl(const rza_mmu_pgtbl_cfg_t *config_table);
-static void rz_mmu_write_tbl(const rza_mmu_pgtbl_cfg_t *config_table);
+static int rz_mmu_check_tbl(const struct rza_mmu_pgtbl_cfg_t *config_table);
+static void rz_mmu_write_tbl(const struct rza_mmu_pgtbl_cfg_t *config_table);
 static void rz_mmu_write_ttbr0_el3(const uint64_t addr);
 static void rz_mmu_write_mair_el3(const uint64_t mair);
 static void rz_mmu_write_tcr_el3(const uint64_t tcr);
@@ -25,7 +25,7 @@ uint64_t __attribute__ ((section("base_xlat_table"))) mmu_level1_table[RZA_MMU_L
 uint64_t __attribute__ ((section("xlat_table"), aligned(0x1000))) mmu_level2_table[RZA_MMU_TABLE_ENTRY * RZA_MMU_LEVEL2_TABLE_INDEX_MAX];
 uint64_t level2_table[RZA_MMU_LEVEL2_TABLE_INDEX_MAX];
 
-int plat_mmu_init(const rza_mmu_pgtbl_cfg_t *config_table)
+int plat_mmu_init(const struct rza_mmu_pgtbl_cfg_t *config_table)
 {
 	int       ret;
 	int       index;
@@ -119,7 +119,7 @@ void plat_mmu_enable(void)
 	return;
 }
 
-int rz_mmu_check_tbl(const rza_mmu_pgtbl_cfg_t *config_table)
+int rz_mmu_check_tbl(const struct rza_mmu_pgtbl_cfg_t *config_table)
 {
 	int ret = 0;
 	int index;
@@ -156,7 +156,7 @@ int rz_mmu_check_tbl(const rza_mmu_pgtbl_cfg_t *config_table)
 	return ret;
 }
 
-void rz_mmu_write_tbl(const rza_mmu_pgtbl_cfg_t *config_table)
+void rz_mmu_write_tbl(const struct rza_mmu_pgtbl_cfg_t *config_table)
 {
 	int        desc;
 	int        num_of_desc;

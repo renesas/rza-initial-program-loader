@@ -26,6 +26,7 @@ static int octaram_read(xspidevice_ctrl_t * ctrl, void * buffer, size_t address,
 static int octaram_write(xspidevice_ctrl_t * ctrl, void const * buffer, size_t address, size_t length);
 static int octaram_erase(xspidevice_ctrl_t * ctrl, size_t address, size_t length);
 static enum xspidevice_write_status octaram_get_write_status(xspidevice_ctrl_t * ctrl);
+static int octaram_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress);
 
 /* API function table definition */
 const xspidevice_api_t octaram_apsxx_api = {
@@ -39,6 +40,7 @@ const xspidevice_api_t octaram_apsxx_api = {
 	.write = octaram_write,
 	.erase = octaram_erase,
 	.get_write_status = octaram_get_write_status,
+	.get_logical_address = octaram_get_logical_address,
 };
 
 /* Access timing parameters : 100MHz
@@ -229,4 +231,10 @@ static enum xspidevice_write_status octaram_get_write_status(xspidevice_ctrl_t *
 {
 	return -1;
 
+}
+
+static int octaram_get_logical_address(xspidevice_ctrl_t * ctrl, size_t paddress, size_t * const laddress)
+{
+
+	return -1;
 }

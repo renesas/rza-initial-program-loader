@@ -28,6 +28,10 @@
 #define RESET_DURATION_US 10
 #define DEFAULT_VOLTAGE_IS_1800MV 1
 
+#ifndef DEFAULT_SPIM_DRCR_RBURST
+#define DEFAULT_SPIM_DRCR_RBURST 7u /* default read burst for NOR Flash memory if not set */
+#endif
+
 /* Static function pre-definition */
 static int spim_open(xspi_ctrl_t * ctrl, xspi_cfg_t const * const cfg);
 static int spim_close(xspi_ctrl_t * const ctrl);
@@ -185,7 +189,7 @@ static const uint32_t drcr_init_mask =
 	SPIM_DRCR_RBE |
 	SPIM_DRCR_SSLE;
 static const uint32_t drcr_init_value =
-	7u << SPIM_DRCR_RBURST_POS |
+	DEFAULT_SPIM_DRCR_RBURST << SPIM_DRCR_RBURST_POS |
 	1u << SPIM_DRCR_RCF_POS |
 	1u << SPIM_DRCR_RBE_POS |
 	1u << SPIM_DRCR_SSLE_POS;
@@ -247,6 +251,8 @@ static void spim_ip_init(spim_ctrl_t *myctrl)
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_CMNCR, cmncr_init_mask, cmncr_init_value);
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_SSLDR, ssldr_init_mask, ssldr_init_value);
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_DRCR, drcr_init_mask, drcr_init_value);
+	/* After setting the RCF bit, a dummy read of the DRCR register is required. (25.4.3 Data Read Control Register (DRCR)) */
+	mmio_read_32(myctrl->reg_base + SPIM_DRCR);
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_DREAR, drear_init_mask, drear_init_value);
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_DRDRENR, drdrenr_init_mask, drdrenr_init_value);
 	mmio_clrsetbits_32(myctrl->reg_base + SPIM_PHYCNT, phycnt_init_mask, phycnt_init_value|SPIM_PHYCNT_CAL);
@@ -385,6 +391,7 @@ static int spim_reduce_frequency(spim_ctrl_t * const ctrl)
 static void spim_start_xip_internal(spim_ctrl_t * const ctrl)
 {
 	spim_reduce_frequency(ctrl);
+	
 	mmio_clrbits_32(ctrl->reg_base + SPIM_CMNCR, SPIM_CMNCR_MD);
 	mmio_read_32(ctrl->reg_base + SPIM_CMNCR);
 }
@@ -397,6 +404,7 @@ static void test_sslf(spim_ctrl_t * myctrl)
 static int spim_stop_xip_internal(spim_ctrl_t * myctrl)
 {
 	int result = 0;
+	
 	uint32_t drcr = mmio_read_32(myctrl->reg_base + SPIM_DRCR);
 	if ((drcr & (SPIM_DRCR_RBE|SPIM_DRCR_SSLE)) == (SPIM_DRCR_RBE|SPIM_DRCR_SSLE)) {
 		/* Set SSLN and wait for sslf */
@@ -414,8 +422,18 @@ static int spim_stop_xip_internal(spim_ctrl_t * myctrl)
 static bool spim_stop_xip_temporarily(spim_ctrl_t * myctrl)
 {
 	/* Stop XIP and return previous state*/
-	bool state = !(mmio_read_32(myctrl->reg_base + SPIM_CMNCR) & SPIM_CMNCR_MD);
-	spim_stop_xip_internal(myctrl);
+	bool state;
+	uint32_t cmndr = mmio_read_32(myctrl->reg_base + SPIM_CMNCR);
+
+	if ( (cmndr & SPIM_CMNCR_MD) != 0 ) {
+		/* Manual mode */
+		state = false;
+	}
+	else {
+		/* External address space read mode */
+		spim_stop_xip_internal(myctrl);
+		state = true;
+	}
 	return state;
 }
 
@@ -525,6 +543,8 @@ static void send_256(spim_ctrl_t * myctrl, xspi_transfer_form_t form, uintptr_t 
 {
 	/* Use wbuffer for transfer */
 	mmio_setbits_32(myctrl->reg_base + SPIM_DRCR, SPIM_DRCR_RCF);
+	/* After setting the RCF bit, a dummy read of the DRCR register is required. (25.4.3 Data Read Control Register (DRCR)) */
+	mmio_read_32(myctrl->reg_base + SPIM_DRCR);
 	mmio_setbits_32(myctrl->reg_base + SPIM_PHYCNT, SPIM_PHYCNT_WBUF2|SPIM_PHYCNT_WBUF|SPIM_PHYCNT_CAL);
 	if (form == SPI_FORM_1_1_4 || form == SPI_FORM_1_4_4) {
 		uint32_t phyoffset2_msk = SPIM_PHYOFFSET2_OCTTMG;
@@ -1138,6 +1158,8 @@ static int spim_start_xip(xspi_ctrl_t * const ctrl)
 	assert(ctrl);
 	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
 	mmio_setbits_32(myctrl->reg_base + SPIM_DRCR, SPIM_DRCR_RCF);
+	/* After setting the RCF bit, a dummy read of the DRCR register is required. (25.4.3 Data Read Control Register (DRCR)) */
+	mmio_read_32(myctrl->reg_base + SPIM_DRCR);
 	spim_start_xip_internal(myctrl);
 	spim_inv_mmap(ctrl);
 
@@ -1224,3 +1246,257 @@ static uint32_t spim_get_features(xspi_ctrl_t * const ctrl)
 
 	return features;
 }
+
+#if (FLASH_MEMORY_TYPE == NAND_FLASH)
+int spim_exec_op_read_repeat(xspi_ctrl_t * const ctrl, xspi_op_t const * const op, bool is_write, int repeat)
+{
+	/* Check parameters */
+	assert(ctrl);
+	assert(op);
+	assert(op->transfer_size == 0 || (op->transfer_size && op->transfer_buffer));
+	spim_ctrl_t * myctrl = (spim_ctrl_t *)ctrl;
+	bool is_xip;
+	int time;
+	uint32_t offset;
+
+	if ((is_write == true)||(repeat <= 0)) {
+		ERROR("Invalid parameters\n");
+		return -1;
+	}
+
+	switch (op->form) {
+	case SPI_FORM_1_1_1:
+	case SPI_FORM_1_1_4:
+	case SPI_FORM_1_4_4:
+		break;
+	default:
+		ERROR("Unsupported transfer form %d\n", op->form);
+		return -1;
+	}
+
+	/* Save XIP state and stop XIP */
+	is_xip = spim_stop_xip_temporarily(myctrl);
+
+	/* Reduce freq for MPU's AC characteristics */
+	spim_reduce_frequency(ctrl);
+
+	/* Wait for transaction end */
+	test_tend(myctrl);
+
+	/* Change I/O level while idle state */
+	spim_set_idlelevel(myctrl, op);
+
+	/* Create values to write the registers */
+	uint32_t smcmr_set = 0;
+	uint32_t smenr_set = 0;
+	uint32_t smdrenr_set = 0;
+	uint32_t smopr = 0;
+	uint32_t smadr = op->address;
+	uint32_t smdmcr_set = 0;
+	uint32_t ssldr_set = 0;
+	uint32_t save_ssldr = mmio_read_32(myctrl->reg_base + SPIM_SSLDR);
+	uint32_t save_phyoffset1 = mmio_read_32(myctrl->reg_base + SPIM_PHYOFFSET1);
+	uint32_t save_phyoffset2 = mmio_read_32(myctrl->reg_base + SPIM_PHYOFFSET2);
+	uint32_t save_phycnt = mmio_read_32(myctrl->reg_base + SPIM_PHYCNT);
+
+	/* Command form */
+	switch (op->form) {
+	case SPI_FORM_1_1_1:
+		smenr_set |= smenr_form_111;
+		break;
+	case SPI_FORM_1_1_4:
+		smenr_set |= smenr_form_114;
+		break;
+	case SPI_FORM_1_4_4:
+		smenr_set |= smenr_form_144;
+		break;
+	default:
+		ERROR("Unsupported transfer form %d\n", op->form);
+		return -1;
+	}
+
+	/* Opcode */
+	switch (op->op_size) {
+	case 0:
+		smenr_set |= smenr_op_none;
+		break;
+	case 1:
+		smenr_set |= smenr_op_1byte;
+		smcmr_set |= (op->op & 0xff) << SPIM_SMCMR_CMD_POS;
+		break;
+	case 2:
+		smenr_set |= smenr_op_2byte;
+		smcmr_set |= (op->op & 0xff) << SPIM_SMCMR_OCMD_POS;
+		smcmr_set |= (op->op & 0xff00) >> 8 << SPIM_SMCMR_CMD_POS;
+		break;
+	default:
+		ERROR("Unsupported op size %d\n", op->op_size);
+		return -1;
+	}
+
+	/* Address */
+	switch (op->address_size) {
+	case 0:
+		smenr_set |= smenr_addr_none;
+		break;
+	case 3:
+		smenr_set |= smenr_addr_3byte;
+		break;
+	case 4:
+		smenr_set |= smenr_addr_4byte;
+		break;
+	default:
+		ERROR("Unsupported address size %d\n", op->address_size);
+		return -1;
+	}
+
+	/* Additional data */
+	offset = op->additional_value;
+	switch (op->additional_size) {
+	case 0:
+		smenr_set |= smenr_additional_none;
+		break;
+	case 1:
+		smenr_set |= smenr_additional_1byte;
+		smopr = (offset & 0xff) << SPIM_SMOPR_OPD3_POS;
+		break;
+	case 2:
+		smenr_set |= smenr_additional_2byte;
+		smopr = (offset & 0xff) << SPIM_SMOPR_OPD2_POS;
+		smopr |= (offset & 0xff00) >> 8 << SPIM_SMOPR_OPD3_POS;
+		break;
+	case 3:
+		smenr_set |= smenr_additional_3byte;
+		smopr = (offset & 0xff) << SPIM_SMOPR_OPD1_POS;
+		smopr |= (offset & 0xff00) >> 8 << SPIM_SMOPR_OPD2_POS;
+		smopr |= (offset & 0xff0000) >> 16 << SPIM_SMOPR_OPD3_POS;
+		break;
+	case 4:
+		smenr_set |= smenr_additional_4byte;
+		smopr = (op->additional_value & 0xff) << SPIM_SMOPR_OPD0_POS;
+		smopr |= (op->additional_value & 0xff00) >> 8 << SPIM_SMOPR_OPD1_POS;
+		smopr |= (op->additional_value & 0xff0000) >> 16 << SPIM_SMOPR_OPD2_POS;
+		smopr |= (op->additional_value & 0xff000000) >> 24 << SPIM_SMOPR_OPD3_POS;
+		break;
+	default:
+		ERROR("Unsupported additional size %d\n", op->additional_size);
+		return -1;
+	}
+
+	/* Dummy cycle */
+	if (op->dummy_cycles == 0) {
+		smenr_set |= 0u << SPIM_SMENR_DME_POS;
+		smdmcr_set |= 0u << SPIM_SMDMCR_DMCYC_POS;
+	}
+	else if (op->dummy_cycles == 1 || op->dummy_cycles > 20) {
+		ERROR("Unsupported dummy cycle count %d\n", op->dummy_cycles);
+		return -1;
+	}
+	else {
+		smenr_set |= 1u << SPIM_SMENR_DME_POS;
+		smdmcr_set |= (op->dummy_cycles - 1) << SPIM_SMDMCR_DMCYC_POS;
+	}
+
+	/* PHYOFFSET1 setting */
+	uint32_t phyoffset1_msk = SPIM_PHYOFFSET1_DDRTMG;
+	uint32_t phyoffset1_set;
+	phyoffset1_set = SPIM_PHYOFFSET1_SDR << SPIM_PHYOFFSET1_DDRTMG_POS;
+
+	/* PHYCNT setting */
+	uint32_t phycnt_msk = SPIM_PHYCNT_PHYMEM;
+	uint32_t phycnt_set;
+	phycnt_set = SPIM_PHYCNT_SDR << SPIM_PHYCNT_PHYMEM_POS;
+
+	/* SLCH (SSL assert to CLK high) */
+	if (op->slch_value < 8) {
+		ssldr_set |= op->slch_value << SPIM_SSLDR_SCKDL_POS;
+	}
+	else {
+		ERROR("Unsupported slch_value %d\n", op->slch_value);
+		return -1;
+	}
+
+	/* CLSH (CLK low tp SSL negative) */
+	if (op->clsh_value < 8) {
+		ssldr_set |= op->clsh_value << SPIM_SSLDR_SLNDL_POS;
+	}
+	else {
+		ERROR("Unsupported clsh_value %d\n", op->clsh_value);
+		return -1;
+	}
+
+	/* SHSL (SSL negative to SSL assert) */
+	if (op->shsl_value < 8) {
+		ssldr_set |= op->shsl_value << SPIM_SSLDR_SPNDL_POS;
+	}
+	else {
+		ERROR("Unsupported shsl_value %d\n", op->shsl_value);
+		return -1;
+	}
+
+	/* Write the register */
+	mmio_clrsetbits_32(myctrl->reg_base + SPIM_SMCMR, smcmr_clearmask, smcmr_set);
+	mmio_clrsetbits_32(myctrl->reg_base + SPIM_SMDRENR, smdrenr_clearmask, smdrenr_set);
+	mmio_write_32(myctrl->reg_base + SPIM_SMADR, smadr);
+	mmio_write_32(myctrl->reg_base + SPIM_SMOPR, smopr);
+	mmio_clrsetbits_32(myctrl->reg_base + SPIM_SMDMCR, smdmcr_clearmask, smdmcr_set);
+	mmio_write_32(myctrl->reg_base + SPIM_SSLDR, (save_ssldr & ~ssldr_clearmask) | ssldr_set);
+	mmio_write_32(myctrl->reg_base + SPIM_PHYOFFSET1, (save_phyoffset1 & ~phyoffset1_msk) | phyoffset1_set);
+	mmio_write_32(myctrl->reg_base + SPIM_PHYCNT, (save_phycnt & ~phycnt_msk) | phycnt_set | SPIM_PHYCNT_CAL);
+
+	int64_t remain = (int64_t)op->transfer_size;
+	uintptr_t buffer = (uintptr_t)op->transfer_buffer;
+	uint32_t smcr;
+	uint32_t xfer_count = (uint32_t)op->transfer_size;
+
+
+	/* Enable transmit */
+	if (is_write && remain) {
+		smcr = SPIM_SMCR_SPIWE | SPIM_SMCR_SPIE;
+	}
+	else if (remain) {
+		smcr = SPIM_SMCR_SPIRE | SPIM_SMCR_SPIE;
+	}
+	else {
+		smcr = SPIM_SMCR_SPIE;
+	}
+
+	/* read only */
+	smcr &= ~SPIM_SMCR_SSLKP;
+
+	for ( time = 1; time <= repeat; time++) {
+		receive(myctrl, buffer, smenr_set);
+		/* Exec transaction */
+		mmio_write_32(myctrl->reg_base + SPIM_SMCR, smcr);
+		test_tend(myctrl);
+
+		/* Store received data */
+		uint32_t smrdr = mmio_read_32(myctrl->reg_base + SPIM_SMRDR0);
+		*(uint32_t*)buffer = smrdr;
+
+		buffer += xfer_count;
+		offset += xfer_count;
+
+		/* Update optional data */
+		smopr = (offset & 0xff) << SPIM_SMOPR_OPD2_POS;
+		smopr |= (offset & 0xff00) >> 8 << SPIM_SMOPR_OPD3_POS;
+		mmio_write_32(myctrl->reg_base + SPIM_SMOPR, smopr);
+	}
+
+	/* Clear write buffer flag and restore OCTTMG */
+	mmio_clrsetbits_32(myctrl->reg_base + SPIM_PHYCNT, SPIM_PHYCNT_WBUF2|SPIM_PHYCNT_WBUF, SPIM_PHYCNT_CAL);
+	mmio_write_32(myctrl->reg_base + SPIM_PHYOFFSET2, save_phyoffset2);
+
+	/* Resume regs */
+	mmio_write_32(myctrl->reg_base + SPIM_SSLDR, save_ssldr);
+	mmio_write_32(myctrl->reg_base + SPIM_PHYCNT, save_phycnt|SPIM_PHYCNT_CAL);
+	mmio_write_32(myctrl->reg_base + SPIM_PHYOFFSET1, save_phyoffset1);
+
+	if (is_xip) {
+		/* Resume XIP state */
+		spim_start_xip_internal(ctrl);
+	}
+
+	return 0;
+}
+#endif /* (FLASH_MEMORY_TYPE == NAND_FLASH) */

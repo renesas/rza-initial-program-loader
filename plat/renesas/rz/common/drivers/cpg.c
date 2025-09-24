@@ -1026,7 +1026,7 @@ static void wait_until_32(uintptr_t addr, uint32_t mask, uint32_t test)
 	while((mmio_read_32(addr) & mask) != test) {};
 }
 
-static void cpg_stop_xspi_clock(xspi_clock spi)
+static void cpg_stop_xspi_clock(enum xspi_clock spi)
 {
 	int onoff_pos;
 	uintptr_t clkon_ctrl;
@@ -1053,7 +1053,7 @@ static void cpg_stop_xspi_clock(xspi_clock spi)
 	wait_until_32(clkmon_ctrl, 0x0003, 0);
 }
 
-static void cpg_start_xspi_clock(xspi_clock spi)
+static void cpg_start_xspi_clock(enum xspi_clock spi)
 {
 	int onoff_pos;
 	uintptr_t clkon_ctrl;
@@ -1080,7 +1080,7 @@ static void cpg_start_xspi_clock(xspi_clock spi)
 	wait_until_32(clkmon_ctrl, 0x0003, 0x0003);
 }
 
-int cpg_set_xspi_clock(xspi_clock spi, int frequency_hz)
+int cpg_set_xspi_clock(enum xspi_clock spi, int frequency_hz)
 {
 	int seldiv_pos;
 	int status_pos;
@@ -1126,7 +1126,7 @@ int cpg_set_xspi_clock(xspi_clock spi, int frequency_hz)
 	return 0;
 }
 
-int cpg_get_xspi_clock(xspi_clock spi)
+int cpg_get_xspi_clock(enum xspi_clock spi)
 {
 	uint8_t sel;
 	uint8_t div;
@@ -1151,4 +1151,24 @@ int cpg_get_xspi_clock(xspi_clock spi)
 	if (frequency == -1) ERROR("CPG register value error (sel=%d, div=%d) in %s", sel, div, __func__);
 
 	return frequency;
+}
+
+void cpg_start_dmac(uint32_t unit)
+{
+	mmio_write_32(CPG_CLKON_DAMC_REG, ((1U << (16U + unit)) | (1U << unit)));
+	wait_until_32(CPG_CLKMON_DAMC_REG, (1U << unit), (1U << unit));
+
+	mmio_write_32(CPG_BUS_REG1_MSTOP, ((3U << (2)) << 16U));
+
+	mmio_write_32(CPG_RST_DMAC, ((1U << (16 + unit))|(1U << unit)));
+	wait_until_32(CPG_RSTMON_DMAC, (1U << unit), (0U << unit));
+}
+
+void cpg_stop_dmac(uint32_t unit)
+{
+	mmio_write_32(CPG_BUS_REG1_MSTOP, ((3U << (2)) << 16U) | (3U << (2)));
+	
+	mmio_write_32(CPG_CLKON_DAMC_REG,  (1U << (16U + unit)));
+	wait_until_32(CPG_CLKMON_DAMC_REG, (1U << unit), (0U << unit));
+
 }

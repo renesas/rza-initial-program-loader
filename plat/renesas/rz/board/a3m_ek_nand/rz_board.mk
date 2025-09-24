@@ -1,0 +1,31 @@
+#
+# Copyright (c) 2021, Renesas Electronics Corporation. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+XSPI0_DEVICE?=qspiflash_w25n
+XSPI_DEVICE_TYPE:=QSPI-NAND
+
+FLASH_MEMORY_TYPE:=NAND_FLASH
+
+RZ_FLASH_SIZE ?= 134217728 # 128MB
+DEFAULT_SPIM_DRCR_RBURST:=31
+
+ifneq (${USE_SDRAM},0)
+
+ifeq (${DDR_PLL4},1333)
+DDR_SOURCES	+=	plat/renesas/rz/soc/${PLAT}/drivers/ddr/param_mc_C-011_D3-02-1.c	\
+				plat/renesas/rz/common/drivers/ddr/param_swizzle_T1.c
+else
+DDR_PLL4    := 1600
+DDR_SOURCES	+=	plat/renesas/rz/soc/${PLAT}/drivers/ddr/param_mc_C-011_D3-01-1.c	\
+				plat/renesas/rz/common/drivers/ddr/param_swizzle_T1.c
+endif
+
+$(eval $(call add_define,DDR_PLL4))
+endif
+$(eval $(call add_define_val,XSPI_DEVICE_TYPE,\"${XSPI_DEVICE_TYPE}\"))
+$(eval $(call add_define,FLASH_MEMORY_TYPE))
+$(eval $(call add_define,RZ_FLASH_SIZE))
+$(eval $(call add_define,DEFAULT_SPIM_DRCR_RBURST))

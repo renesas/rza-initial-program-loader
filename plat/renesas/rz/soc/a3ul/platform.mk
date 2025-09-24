@@ -6,6 +6,7 @@
 
 APPLOAD?=RZ_NOFIP
 $(eval $(call add_define,APPLOAD))
+
 include plat/renesas/rz/common/rz_common.mk
 include plat/renesas/rz/board/${BOARD}/rz_board.mk
 include plat/renesas/rz/soc/${PLAT}/rz_xspi.mk
@@ -13,6 +14,9 @@ include plat/renesas/rz/soc/${PLAT}/rz_xspi.mk
 PLAT_INCLUDES	+=	-Iplat/renesas/rz/soc/a3ul/include
 
 DDR_SOURCES += plat/renesas/rz/soc/a3ul/drivers/ddr/ddr_a3ul.c
+
+RZA_UNLOCK_FLASH_WRITE_PROTECT:=0
+$(eval $(call add_define,RZA_UNLOCK_FLASH_WRITE_PROTECT))
 
 RZA3 := 1
 RZA3UL := 1

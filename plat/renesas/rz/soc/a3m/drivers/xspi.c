@@ -55,14 +55,28 @@ void xspi_setup(void)
  * memcpy for xspi
  */
 int rz_xspi_read(void* to, uint64_t offset, size_t length) {
-    int result;
-    const xspidevice_instance_t *inst = xspidevices[0];
-    if (!inst) return -1;
+	int result;
+	size_t fsp_base_addr = offset;
+#if (FLASH_MEMORY_TYPE == NAND_FLASH)
+	size_t loffset;
+#endif /* (FLASH_MEMORY_TYPE == NAND_FLASH) */
+	const xspidevice_instance_t *inst = xspidevices[0];
+	if (!inst) return -1;
 
 	result = inst->api->open(inst->ctrl, inst->cfg);
+
+#if (FLASH_MEMORY_TYPE == NAND_FLASH)
 	if (!result) {
-        inst->api->read(inst->ctrl, to, (size_t)offset, length);
-        inst->api->close(inst->ctrl);
+		result = inst->api->get_logical_address(inst->ctrl, offset, &loffset);
+		if (!result) {
+			fsp_base_addr = loffset;
+		}
 	}
-    return result;
+#endif /* (FLASH_MEMORY_TYPE == NAND_FLASH) */
+
+	if (!result) {
+		inst->api->read(inst->ctrl, to, fsp_base_addr, length);
+		inst->api->close(inst->ctrl);
+	}
+	return result;
 }
