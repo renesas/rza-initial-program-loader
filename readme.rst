@@ -9,7 +9,7 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 
 Current Release
 ---------------------------
-IPL v2.2.0
+IPL v2.3.0
 
 Supported MPUs
 ----------------------------

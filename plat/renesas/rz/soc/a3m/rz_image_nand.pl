@@ -52,7 +52,7 @@ binmode $origin;
 my @st = stat($origin);
 
 # Check appended size
-my $size = ($st[7] + 255) & "0xffffffffffffff00";
+my $size = ($st[7] + 0) & "0xfffffffffffffffc";
 my $msg;
 if ($size != $st[7]) {$msg = "Appended size";} else {$msg="Size";}
 die("$msg too big ($size > $size_limit)") if ($size > $size_limit);
@@ -60,20 +60,19 @@ die("$msg too big ($size > $size_limit)") if ($size > $size_limit);
 open(my $tmp, '>', $tmpname) or die("Can not open temporary file");
 binmode $tmp;
 
-# WritePadding
+# Padding for 4byte align
 my $buf;
 read($origin, $buf, $st[7]);
 $tmp->print($buf);
-#print "size:$size st:$st[7]\n";
-if ($size != $st[7]) {
-    $tmp->print(pack('C', 0x80));
-    for(my $i=($st[7] + 1);$i<$size;$i++) {
-		$tmp->print(pack('C', 0));
+my $size_diff = ($st[7] - $size);
+if ($size_diff != 0) {
+    warn "Not aligned. Append " . (4 - $size_diff) . " zero(s)";
+    for(my $i=4;$i>$size_diff;$i--) {
+        $tmp->print(pack('C', 0));
     }
-    padding256($tmp, $st[7], 0);
-} else {
-    padding256($tmp, $st[7], 0x80);
+    $size += 4;
 }
+
 close($tmp);
 open($tmp, '<', $tmpname) or die("Can not open temporary file");
 # Sha256
@@ -82,7 +81,6 @@ $sha->addfile($tmpname);
 my $digest = $sha->digest();
 
 seek($origin, 0,0);
-$size += 256;
 
 # Create bin file
 open(my $out, '>', $outname) or die("Can not open output file");
