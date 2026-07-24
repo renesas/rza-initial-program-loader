@@ -9,7 +9,7 @@ IPL consists of functions such as PLL and clock control driver, peripheral I/O m
 
 Current Release
 ---------------------------
-IPL v2.3.0
+IPL v2.3.1
 
 Supported MPUs
 ----------------------------
@@ -41,7 +41,7 @@ Supported RZ/A MPU Kits
 Development Environment
 ----------------------------
 e² studio is used for build and program execution environment.
-Please refer to the `application note <./application_note/_index.md>`_ for the procedure for building the environment and how to use it.
+Please refer to the `application note <./application_note/00.%20index.md>`_ for the procedure for building the environment and how to use it.
 
 Related Links
 ----------------------------

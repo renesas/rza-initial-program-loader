@@ -7,6 +7,6 @@
 #ifndef _RZA_IPL_VERSION_H_
 #define _RZA_IPL_VERSION_H_
 
-#define RZA_IPL_VERSION_STRING  "v2.3.0"
+#define RZA_IPL_VERSION_STRING  "v2.3.1"
 
 #endif  /* _RZA_IPL_VERSION_H_ */

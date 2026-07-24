@@ -26,7 +26,7 @@
 #define SYS_REG_LSI_MODE	(0xA00)
 #define SYS_BITPOS_LSI_MODE_STAT_DEBUGEN	(9)
 
-#define WAIT_CNT_HIGH16		(0x100)
+#define WAIT_CNT_HIGH16		(0x350)
 #define WAIT_CNT_LOW16		(0)
 #endif
 
